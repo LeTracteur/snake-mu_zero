@@ -38,17 +38,13 @@ class DQNagent:
 		a = Input(shape=(self.state_size[0],self.state_size[1], 4))
 
 		c = Conv2D(filters=32, kernel_size=3, padding="same", input_shape=(self.state_size[0], self.state_size[1], 4), activation='relu')(a)
-		# m = MaxPooling2D(pool_size=(2, 2))(c)
+		m = MaxPooling2D(pool_size=(2, 2))(c)
 
-		c = Conv2D(filters=32, kernel_size=3, padding="same",activation='relu')(c)
-		# m = MaxPooling2D(pool_size=(2, 2))(c)
+		c = Conv2D(filters=32, kernel_size=3, padding="same",activation='relu')(m)
+		m = MaxPooling2D(pool_size=(2, 2))(c)
 
-		c = Conv2D(filters=32, kernel_size=3, padding="same", activation='relu')(c)
-		c = Conv2D(filters=32, kernel_size=3, padding="same", activation='relu')(c)
-
-		f = Flatten()(c)
-		d0 = Dense(64, activation="relu")(f)
-		d1 = Dense(32, activation="relu")(d0)
+		f = Flatten()(m)
+		d1 = Dense(32, activation="relu")(f)
 		d2 = Dense(16, activation="relu")(d1)
 		d3 = Dense(self.nb_actions, activation="linear")(d2)
 
