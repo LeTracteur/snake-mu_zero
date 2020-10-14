@@ -47,14 +47,14 @@ class DQNagent:
 		a = Input(shape=(self.state_size[0], self.state_size[1], self.tau))
 
 		c = Conv2D(filters=32, kernel_size=8, strides=4, kernel_initializer=tf.keras.initializers.VarianceScaling(scale=2.0), input_shape=(self.state_size[0], self.state_size[1], self.tau), activation='relu')(a)
-		c = Conv2D(filters=32, kernel_size=4, strides=2, kernel_initializer=tf.keras.initializers.VarianceScaling(scale=2.0), activation='relu')(c)
-		c = Conv2D(filters=32, kernel_size=3, strides=1, kernel_initializer=tf.keras.initializers.VarianceScaling(scale=2.0), activation='relu')(c)
+		c = Conv2D(filters=64, kernel_size=4, strides=2, kernel_initializer=tf.keras.initializers.VarianceScaling(scale=2.0), activation='relu')(c)
+		c = Conv2D(filters=64, kernel_size=3, strides=1, kernel_initializer=tf.keras.initializers.VarianceScaling(scale=2.0), activation='relu')(c)
 
 		f = Flatten()(c)
-		d0 = Dense(512, kernel_initializer=tf.keras.initializers.VarianceScaling(scale=2.0), activation="relu")(f)
-		# d1 = Dense(128, kernel_initializer=tf.keras.initializers.VarianceScaling(scale=2.0), activation="relu")(d0)
-		# d2 = Dense(64, kernel_initializer=tf.keras.initializers.VarianceScaling(scale=2.0), activation="relu")(d1)
-		d3 = Dense(self.nb_actions, kernel_initializer=tf.keras.initializers.VarianceScaling(scale=2.0), activation="linear")(d0)
+		# d0 = Dense(512, kernel_initializer=tf.keras.initializers.VarianceScaling(scale=2.0), activation="relu")(f)
+		d1 = Dense(128, kernel_initializer=tf.keras.initializers.VarianceScaling(scale=2.0), activation="relu")(f)
+		d2 = Dense(64, kernel_initializer=tf.keras.initializers.VarianceScaling(scale=2.0), activation="relu")(d1)
+		d3 = Dense(self.nb_actions, kernel_initializer=tf.keras.initializers.VarianceScaling(scale=2.0), activation="linear")(d2)
 
 		model = Model(inputs=a, outputs=d3)
 		model.compile(loss="mse", optimizer=self.optimizer)
@@ -147,7 +147,7 @@ class DQNagent:
 		self.model_policy.optimizer.apply_gradients(zip(clipped_gradients, self.model_policy.trainable_variables))
 
 		self.agent_loss.append(loss)
-		return loss
+		return loss.numpy()
 
 	def save(self):
 		self.model_policy.save("model/model_policy.h5")

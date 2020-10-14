@@ -4,9 +4,10 @@ import random
 from copy import deepcopy
 
 
-def display_snake(screen, snake_color, snake_vol, snake_list):
-	for b in snake_list:
-		pygame.draw.rect(screen, snake_color, [b[0], b[1], snake_vol, snake_vol])
+def display_snake(screen, head_color, body_color, snake_vol, snake_list):
+	pygame.draw.rect(screen, head_color, [snake_list[-1][0], snake_list[-1][1], snake_vol, snake_vol])
+	for b in snake_list[:-1]:
+		pygame.draw.rect(screen, body_color, [b[0], b[1], snake_vol, snake_vol])
 
 
 def add_food(possible_x, possible_y, snake_list):

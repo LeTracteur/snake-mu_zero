@@ -7,7 +7,9 @@ from tensorflow import keras
 #########
 
 GREEN = (0, 255, 0)
-MY_YELLOW = (255, 255, 0)
+HEAD_YELLOW = (255, 255, 0)
+BODY_YELLOW = (255, 255, 102)
+
 BLACK = (0, 0, 0)
 
 #############################
@@ -42,6 +44,11 @@ class SnakeEnvironment_2:
 		self.head_y = random.choice(self.possible_y)
 		self.snake_head = [self.head_x, self.head_y]
 		self.snake_list = [self.snake_head]
+
+		second_x = 10 if self.head_x == 0 else self.head_x - 10
+		second_y = self.head_y
+		chunck = [second_x, second_y]
+		self.snake_list.insert(0, chunck)
 		self.foodx, self.foody = add_food(self.possible_x, self.possible_y, self.snake_list)
 
 		board_status = np.copy(self.states_space)
@@ -49,7 +56,9 @@ class SnakeEnvironment_2:
 		for i in range(self.snake_size):
 			for j in range(self.snake_size):
 				board_status[self.foody+i][self.foodx+j] = list(GREEN)
-				board_status[self.snake_head[1]+i][self.snake_head[0]+j] = list(MY_YELLOW)
+				board_status[self.snake_head[1]+i][self.snake_head[0]+j] = list(HEAD_YELLOW)
+				for b in self.snake_list[:-1]:
+					board_status[b[1]+i][b[0]+j] = list(BODY_YELLOW)
 
 		self.score = 0
 
@@ -62,7 +71,7 @@ class SnakeEnvironment_2:
 		for i in range(self.snake_size):
 			for j in range(self.snake_size):
 				board_status[self.foody+i][self.foodx+j] = list(GREEN)
-				board_status[self.snake_head[1]+i][self.snake_head[0]+j] = list(MY_YELLOW)
+				board_status[self.snake_head[1]+i][self.snake_head[0]+j] = list(HEAD_YELLOW)
 
 		board_status = scale_lumininance(board_status)/255.0
 
@@ -75,12 +84,12 @@ class SnakeEnvironment_2:
 			for j in range(self.snake_size):
 				board_status[self.foody + i][self.foodx + j] = list(GREEN)
 				for b in self.snake_list[:-1]:
-					board_status[b[1]+i][b[0]+j] = list(MY_YELLOW)
+					board_status[b[1]+i][b[0]+j] = list(BODY_YELLOW)
 
 		if 0 <= self.snake_head[0] < self.width and 0 <= self.snake_head[1] < self.length:
 			for i in range(self.snake_size):
 				for j in range(self.snake_size):
-					board_status[self.snake_head[1] + i][self.snake_head[0] + j] = list(MY_YELLOW)
+					board_status[self.snake_head[1] + i][self.snake_head[0] + j] = list(HEAD_YELLOW)
 
 		board_status = scale_lumininance(board_status)/255.0
 
@@ -145,9 +154,9 @@ class SnakeEnvironment_2:
 
 	def display_screen(self):
 		self.screen.fill(BLACK)
-		value = self.score_font.render("Your Score: " + str(self.score), True, MY_YELLOW)
+		value = self.score_font.render("Your Score: " + str(self.score), True, HEAD_YELLOW)
 		self.screen.blit(value, [0, 0])
 		pygame.draw.rect(self.screen, GREEN, [self.foodx, self.foody, self.snake_size, self.snake_size])
-		display_snake(self.screen, MY_YELLOW, self.snake_size, self.snake_list)
+		display_snake(self.screen, HEAD_YELLOW, BODY_YELLOW, self.snake_size, self.snake_list)
 		pygame.display.update()
 		self.env_clock.tick(10)

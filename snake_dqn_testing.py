@@ -69,7 +69,7 @@ for ep in range(nb_episodes):
 
 		state = new_state
 
-		if step > agent.batch_size:
+		if counter > agent.batch_size:
 			# if ep % c1 == 0:
 			loss = agent.optimize()
 
