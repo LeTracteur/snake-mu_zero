@@ -9,8 +9,8 @@ green = (0, 255, 0)
 my_yellow = (208, 208, 63)
 black = (0,0,0)
 
-screen_width = 100
-screen_height = 100
+screen_width = 500
+screen_height = 500
 snake_size = 10
 snake_body = 1
 

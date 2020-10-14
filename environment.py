@@ -7,19 +7,19 @@ from tensorflow import keras
 #########
 
 GREEN = (0, 255, 0)
-MY_YELLOW = (208, 208, 63)
-BLACK = (0,0,0)
+MY_YELLOW = (255, 255, 0)
+BLACK = (0, 0, 0)
 
 #############################
 
 
-class SnakeEnvironment:
+class SnakeEnvironment_2:
 	def __init__(self, width, length, snake_size):
 		self.actions_space = 4
 		assert width%snake_size == 0 and length%snake_size == 0, "width and length must be a multiple of snake_size"
 		self.width = width
 		self.length = length
-		self.states_space = np.zeros((int(width/snake_size), int(length/snake_size)))
+		self.states_space = np.zeros((width, length, 3))
 		self.snake_size = snake_size
 		self.score = 0
 
@@ -45,44 +45,46 @@ class SnakeEnvironment:
 		self.foodx, self.foody = add_food(self.possible_x, self.possible_y, self.snake_list)
 
 		board_status = np.copy(self.states_space)
-		f_pos_x, f_pos_y = int(self.foodx/self.snake_size), int(self.foody/self.snake_size)
-		board_status[f_pos_y][f_pos_x] = 3
 
-		head_pos_x, head_pos_y = int(self.snake_head[0]/self.snake_size), int(self.snake_head[1]/self.snake_size)
-		board_status[head_pos_y][head_pos_x] = 1
-
-		categorical_2d = keras.utils.to_categorical(np.array(board_status), num_classes=4)
+		for i in range(self.snake_size):
+			for j in range(self.snake_size):
+				board_status[self.foody+i][self.foodx+j] = list(GREEN)
+				board_status[self.snake_head[1]+i][self.snake_head[0]+j] = list(MY_YELLOW)
 
 		self.score = 0
-		return categorical_2d
+
+		board_status = scale_lumininance(board_status)/255.0
+
+		return board_status
 
 	def observation(self):
 		board_status = np.copy(self.states_space)
-		f_pos_x, f_pos_y = int(self.foodx / self.snake_size), int(self.foody / self.snake_size)
-		board_status[f_pos_y][f_pos_x] = 3
+		for i in range(self.snake_size):
+			for j in range(self.snake_size):
+				board_status[self.foody+i][self.foodx+j] = list(GREEN)
+				board_status[self.snake_head[1]+i][self.snake_head[0]+j] = list(MY_YELLOW)
 
-		head_pos_x, head_pos_y = int(self.snake_head[0] / self.snake_size), int(self.snake_head[1] / self.snake_size)
-		board_status[head_pos_y][head_pos_x] = 1
+		board_status = scale_lumininance(board_status)/255.0
 
-		categorical_2d = keras.utils.to_categorical(np.array(board_status), num_classes=4)
-
-		return categorical_2d
+		return board_status
 
 	def get_state_map(self):
 		board_status = np.copy(self.states_space)
-		f_pos_x, f_pos_y = int(self.foodx / self.snake_size), int(self.foody / self.snake_size)
-		board_status[f_pos_y][f_pos_x] = 3
 
-		head_pos_x, head_pos_y = int(self.snake_head[0] / self.snake_size), int(self.snake_head[1] / self.snake_size)
-		if head_pos_x >= 0 and head_pos_y >= 0 and head_pos_x < self.width/self.snake_size and head_pos_y < self.length/self.snake_size:
-			board_status[head_pos_y][head_pos_x] = 1
+		for i in range(self.snake_size):
+			for j in range(self.snake_size):
+				board_status[self.foody + i][self.foodx + j] = list(GREEN)
+				for b in self.snake_list[:-1]:
+					board_status[b[1]+i][b[0]+j] = list(MY_YELLOW)
 
-		for b in self.snake_list[:-1]:
-			pos_x, pos_y = int(b[0] / self.snake_size), int(b[1] / self.snake_size)
-			board_status[pos_y][pos_x] = 2
+		if 0 <= self.snake_head[0] < self.width and 0 <= self.snake_head[1] < self.length:
+			for i in range(self.snake_size):
+				for j in range(self.snake_size):
+					board_status[self.snake_head[1] + i][self.snake_head[0] + j] = list(MY_YELLOW)
 
-		categorical_2d = keras.utils.to_categorical(np.array(board_status), num_classes=4)
-		return categorical_2d
+		board_status = scale_lumininance(board_status)/255.0
+
+		return board_status
 
 	def step(self, action):
 		terminal = False
@@ -112,14 +114,14 @@ class SnakeEnvironment:
 		for x in self.snake_list[:-1]:
 			if x == self.snake_head:
 				terminal = True
-				reward = -1.0
+				reward = -10.0
 
 		if not terminal:
 			if self.head_x == self.foodx and self.head_y == self.foody:
 				self.foodx, self.foody = add_food(self.possible_x, self.possible_y, self.snake_list)
 				add_block = True
 				self.score += 1
-				reward = 5.0
+				reward = 10.0
 			else:
 				reward = 0.0
 
