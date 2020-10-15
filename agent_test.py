@@ -1,6 +1,6 @@
 from environment import *
 from agents import *
-
+from skimage import transform
 
 # def visiualise_buffer(buffer):
 # 	for i in range(len(buffer)):

@@ -1,7 +1,7 @@
 import random
 from utils import *
 from tensorflow import keras
-
+from skimage import transform
 #########
 # COLORS
 #########
@@ -63,7 +63,7 @@ class SnakeEnvironment_2:
 		self.score = 0
 
 		board_status = scale_lumininance(board_status)/255.0
-
+		# board_status = transform.resize(board_status, (84, 84))
 		return board_status
 
 	def observation(self):
@@ -92,7 +92,7 @@ class SnakeEnvironment_2:
 					board_status[self.snake_head[1] + i][self.snake_head[0] + j] = list(HEAD_YELLOW)
 
 		board_status = scale_lumininance(board_status)/255.0
-
+		# board_status = transform.resize(board_status, (84, 84))
 		return board_status
 
 	def step(self, action):
@@ -118,12 +118,12 @@ class SnakeEnvironment_2:
 
 		if self.head_x >= self.width or self.head_x < 0 or self.head_y >= self.length or self.head_y < 0:
 			terminal = True
-			reward = -1.0
+			reward = -2.0
 
 		for x in self.snake_list[:-1]:
 			if x == self.snake_head:
 				terminal = True
-				reward = -10.0
+				reward = -20.0
 
 		if not terminal:
 			if self.head_x == self.foodx and self.head_y == self.foody:

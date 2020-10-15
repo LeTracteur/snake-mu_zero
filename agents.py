@@ -35,7 +35,8 @@ class DQNagent:
 
 		self.memory = deque(maxlen=mem_size)
 
-		self.optimizer = optimizer(learning_rate=self.learningRate)
+		# tf.keras.optimizersAdam(learning_rate=1e-4, epsilon=1e-6)
+		self.optimizer = tf.keras.optimizers.Adam(learning_rate=1e-4, epsilon=1e-6)
 
 		self.model_policy = self.create_model_cnn()
 		self.model_target = self.create_model_cnn()
@@ -51,10 +52,10 @@ class DQNagent:
 		c = Conv2D(filters=64, kernel_size=3, strides=1, kernel_initializer=tf.keras.initializers.VarianceScaling(scale=2.0), activation='relu')(c)
 
 		f = Flatten()(c)
-		# d0 = Dense(512, kernel_initializer=tf.keras.initializers.VarianceScaling(scale=2.0), activation="relu")(f)
-		d1 = Dense(128, kernel_initializer=tf.keras.initializers.VarianceScaling(scale=2.0), activation="relu")(f)
-		d2 = Dense(64, kernel_initializer=tf.keras.initializers.VarianceScaling(scale=2.0), activation="relu")(d1)
-		d3 = Dense(self.nb_actions, kernel_initializer=tf.keras.initializers.VarianceScaling(scale=2.0), activation="linear")(d2)
+		d0 = Dense(512, kernel_initializer=tf.keras.initializers.VarianceScaling(scale=2.0), activation="relu")(f)
+		# d1 = Dense(128, kernel_initializer=tf.keras.initializers.VarianceScaling(scale=2.0), activation="relu")(f)
+		# d2 = Dense(64, kernel_initializer=tf.keras.initializers.VarianceScaling(scale=2.0), activation="relu")(d1)
+		d3 = Dense(self.nb_actions, kernel_initializer=tf.keras.initializers.VarianceScaling(scale=2.0), activation="linear")(d0)
 
 		model = Model(inputs=a, outputs=d3)
 		model.compile(loss="mse", optimizer=self.optimizer)
@@ -149,8 +150,11 @@ class DQNagent:
 		self.agent_loss.append(loss)
 		return loss.numpy()
 
-	def save(self):
-		self.model_policy.save("model/model_policy.h5")
+	def save(self, some_string=''):
+		if some_string:
+			self.model_policy.save("model/"+some_string+"/model_policy.h5")
+		else:
+			self.model_policy.save("model/model_policy.h5")
 
 	def load(self):
 		pass

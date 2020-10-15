@@ -8,6 +8,7 @@ from agents import *
 
 screen_width = 100
 screen_height = 100
+# reshape = (84, 84)
 snake_size = 10
 
 nb_episodes = 10000
@@ -32,7 +33,7 @@ eps_val = 0.0
 ###############
 
 env = SnakeEnvironment_2(screen_width, screen_height, snake_size)
-agent = DQNagent(4, env.states_space.shape, 5000, 32)
+agent = DQNagent(4, env.states_space.shape, 10000, 32)
 
 agent.model_policy.summary()
 
@@ -87,15 +88,21 @@ for ep in range(nb_episodes):
 
 	if env.score > best_score:
 		best_score = env.score
-		agent.save()
+		agent.save('best')
 		eps_val = agent.current_eps
 
 
 agent.plot_loss()
 
+plt.plot(tot_reward)
+plt.title('total reward evolution')
+plt.ylabel('total reward')
+plt.xlabel('episodes')
+plt.show()
+
 plt.plot(reward_list)
-plt.title('reward evolution')
-plt.ylabel('tot reward')
+plt.title('episode reward evolution')
+plt.ylabel('reward per ep')
 plt.show()
 
 plt.plot(steps_list)
