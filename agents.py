@@ -46,13 +46,14 @@ class DQNagent:
 
 	def create_model_cnn(self):
 		a = Input(shape=(self.state_size[0], self.state_size[1], self.tau))
-
-		c = Conv2D(filters=32, kernel_size=8, strides=4, kernel_initializer=tf.keras.initializers.VarianceScaling(scale=2.0), input_shape=(self.state_size[0], self.state_size[1], self.tau), activation='relu')(a)
+		b = tf.subtract(tf.divide(a,4.0),0.5)
+		c = Conv2D(filters=32, kernel_size=8, strides=4, kernel_initializer=tf.keras.initializers.VarianceScaling(scale=2.0), input_shape=(self.state_size[0], self.state_size[1], self.tau), activation='relu')(b)
+		# c = Conv2D(filters=32, kernel_size=3, strides=1, kernel_initializer=tf.keras.initializers.VarianceScaling(scale=2.0), activation='relu')(c)
 		c = Conv2D(filters=64, kernel_size=4, strides=2, kernel_initializer=tf.keras.initializers.VarianceScaling(scale=2.0), activation='relu')(c)
 		c = Conv2D(filters=64, kernel_size=3, strides=1, kernel_initializer=tf.keras.initializers.VarianceScaling(scale=2.0), activation='relu')(c)
 
 		f = Flatten()(c)
-		d0 = Dense(512, kernel_initializer=tf.keras.initializers.VarianceScaling(scale=2.0), activation="relu")(f)
+		d0 = Dense(128, kernel_initializer=tf.keras.initializers.VarianceScaling(scale=2.0), activation="relu")(f)
 		# d1 = Dense(128, kernel_initializer=tf.keras.initializers.VarianceScaling(scale=2.0), activation="relu")(f)
 		# d2 = Dense(64, kernel_initializer=tf.keras.initializers.VarianceScaling(scale=2.0), activation="relu")(d1)
 		d3 = Dense(self.nb_actions, kernel_initializer=tf.keras.initializers.VarianceScaling(scale=2.0), activation="linear")(d0)
@@ -82,10 +83,22 @@ class DQNagent:
 	def display_model(self):
 		self.model_policy.summary()
 
-	def act(self, state):
+	def act(self, state, snake_list=None):
 		self.state_buffer.append(state)
 		if np.random.rand() < self.current_eps:
-			return np.random.randint(self.nb_actions)
+			head = snake_list[-1]
+			before = snake_list[-2]
+			x_res = head[0] - before[0]
+			y_res = head[1] - before[1]
+			if y_res < 0:
+				return np.random.choice([0, 1, 3])
+			elif y_res >0:
+				return np.random.choice([2, 1, 3])
+			elif x_res > 0:
+				return np.random.choice([0, 1, 2])
+			else:
+				return np.random.choice([0, 2, 3])
+			# return np.random.randint(self.nb_actions)
 
 		ss_state = np.stack(self.state_buffer, axis=2)
 		r_state = np.expand_dims(ss_state, axis=0)

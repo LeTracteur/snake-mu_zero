@@ -51,7 +51,7 @@ for ep in range(nb_episodes):
 		agent.update_epsilon()
 
 		# env.render()
-		action = agent.act(state)
+		action = agent.act(state, env.snake_list)
 		new_state, reward, terminal = env.step(action)
 
 		agent.next_state_buffer.append(new_state)

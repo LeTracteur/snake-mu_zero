@@ -58,7 +58,7 @@ class SnakeEnvironment:
 		self.snake_head = [self.head_x, self.head_y]
 		self.snake_list = [self.snake_head]
 
-		second_x = self.wall_size if self.head_x == 0 else self.head_x - self.wall_size
+		second_x = 2*self.wall_size if self.head_x == self.wall_size else self.head_x - self.wall_size
 		second_y = self.head_y
 		chunck = [second_x, second_y]
 		self.snake_list.insert(0, chunck)
@@ -130,7 +130,7 @@ class SnakeEnvironment:
 		self.snake_head = [self.head_x, self.head_y]
 		self.snake_list.append(self.snake_head)
 
-		if self.head_x >= self.width or self.head_x < 0 or self.head_y >= self.length or self.head_y < 0:
+		if self.head_x >= self.width+self.wall_size or self.head_x < self.wall_size or self.head_y >= self.length + self.wall_size or self.head_y < self.wall_size:
 			terminal = True
 			reward = -10.0
 
