@@ -24,12 +24,12 @@ def add_food(possible_x, possible_y, snake_list):
 	return pos_x, pos_y
 
 
-def printProgressBar(iteration, total, eps, tt_reward, score, loss, prefix='', suffix='', decimals=1, length=100, fill='█'):
+def printProgressBar(iteration, total, eps, tt_reward, score, loss, ep, prefix='', suffix='', decimals=1, length=100, fill='█'):
 	percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
 	filledLength = int(length * iteration // total)
 	bar = fill * filledLength + '-' * (length - filledLength)
 	eps = round(eps, 3)
-	print('\r%s |%s| %s%% %s | loss %s | eps %s | total reward %s | score %s' % (prefix, bar, percent, suffix, loss, eps, tt_reward, score), end='\r')
+	print('\r%s |%s| %s%% %s | loss %s | eps %s | total reward %s | ep %s | score %s' % (prefix, bar, percent, suffix, loss, eps, tt_reward, ep, score), end='\r')
 	# Print New Line on Complete
 	if iteration == total:
 		print()

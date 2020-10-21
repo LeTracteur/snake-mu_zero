@@ -118,21 +118,21 @@ class SnakeEnvironment_2:
 
 		if self.head_x >= self.width or self.head_x < 0 or self.head_y >= self.length or self.head_y < 0:
 			terminal = True
-			reward = -2.0
+			reward = -250.0
 
 		for x in self.snake_list[:-1]:
 			if x == self.snake_head:
 				terminal = True
-				reward = -20.0
+				reward = -250.0
 
 		if not terminal:
 			if self.head_x == self.foodx and self.head_y == self.foody:
 				self.foodx, self.foody = add_food(self.possible_x, self.possible_y, self.snake_list)
 				add_block = True
 				self.score += 1
-				reward = 10.0
+				reward = 100.0
 			else:
-				reward = 0.0
+				reward = -1.0
 
 		if not add_block:
 			del self.snake_list[0]

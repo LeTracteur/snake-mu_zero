@@ -1,6 +1,7 @@
 # from old.environment import *
 from environment import *
 from agents import *
+import os
 
 ##############################
 # Game and Training parameters
@@ -33,63 +34,64 @@ eps_val = 0.0
 ###############
 
 env = SnakeEnvironment_2(screen_width, screen_height, snake_size)
-agent = DQNagent(4, env.states_space.shape, 10000, 32)
+agent = DQNagent(4, env.states_space.shape, 10000, 64)
 
 agent.model_policy.summary()
 
 # state = env.observation()
 # agent.next_state_buffer.append(state)
 loss = 0
+os.makedirs("model/best",exist_ok=True)
 for ep in range(nb_episodes):
-	state = env.reset()
-	for _ in range(agent.tau):
-		agent.state_buffer.append(state)
-		agent.next_state_buffer.append(state)
+    state = env.reset()
+    for _ in range(agent.tau):
+        agent.state_buffer.append(state)
+        agent.next_state_buffer.append(state)
 
-	for step in range(steps):
-		agent.update_epsilon()
+    agent.update_epsilon(0.999, 20.0, 100.0, ep, 1.0, 0.1, 0.3)
+    for step in range(steps):
+        # env.render()
+        action = agent.act(state)
+        new_state, reward, terminal = env.step(action)
 
-		# env.render()
-		action = agent.act(state)
-		new_state, reward, terminal = env.step(action)
+        agent.next_state_buffer.append(new_state)
 
-		agent.next_state_buffer.append(new_state)
+        reward_list.append(reward)
 
-		reward_list.append(reward)
+        t_r += reward
+        tot_reward.append(t_r)
+        # copy_s_b = np.stack(agent.state_buffer, axis=2)
+        # copy_s_n_b = np.stack(agent.next_state_buffer, axis=2)
+        agent.add_to_memory(deepcopy(agent.state_buffer), action, reward, deepcopy(agent.next_state_buffer), terminal)
 
-		t_r += reward
-		tot_reward.append(t_r)
-		# copy_s_b = np.stack(agent.state_buffer, axis=2)
-		# copy_s_n_b = np.stack(agent.next_state_buffer, axis=2)
-		agent.add_to_memory(deepcopy(agent.state_buffer), action, reward, deepcopy(agent.next_state_buffer), terminal)
+        if terminal:
+            score_list.append(env.score)
+            steps_list.append(step)
+            break
 
-		if terminal:
-			score_list.append(env.score)
-			steps_list.append(step)
-			break
+        state = new_state
 
-		state = new_state
+        if (counter > agent.batch_size) and (ep > 20):
+            # if ep % c1 == 0:
+            loss = agent.optimize()
 
-		if counter > agent.batch_size:
-			# if ep % c1 == 0:
-			loss = agent.optimize()
+        if counter % c2 == 0:
+            agent.update_weights()
 
-		if counter % c2 == 0:
-			agent.update_weights()
+        printProgressBar(ep * steps + step, steps * nb_episodes, agent.current_eps, t_r, env.score, loss, ep,
+                         prefix="Progress:")
 
-		printProgressBar(ep * steps + step, steps * nb_episodes, agent.current_eps, t_r, env.score, loss,
-		                 prefix="Progress:")
+        counter += 1
 
-		counter += 1
+    if ep > agent.batch_size:
+        for i in range(100):
+            agent.optimize()
+    agent.update_weights()
 
-	if ep > agent.batch_size:
-		agent.optimize()
-	agent.update_weights()
-
-	if env.score > best_score:
-		best_score = env.score
-		agent.save('best')
-		eps_val = agent.current_eps
+    if env.score > best_score:
+        best_score = env.score
+        agent.save('best')
+        eps_val = agent.current_eps
 
 
 agent.plot_loss()
