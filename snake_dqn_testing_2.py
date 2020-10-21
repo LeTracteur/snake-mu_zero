@@ -5,12 +5,11 @@ from agents import *
 ##############################
 # Game and Training parameters
 ##############################
-wall_size = 7
 
-screen_width = 70 + 2*wall_size
-screen_height = 70 + 2*wall_size
+screen_width = 100
+screen_height = 100
 # reshape = (84, 84)
-snake_size = 7
+snake_size = 10
 
 nb_episodes = 10000
 steps = 2000
@@ -33,7 +32,7 @@ best_score = 0
 eps_val = 0.0
 ###############
 
-env = SnakeEnvironment(screen_width, screen_height, snake_size, wall_size)
+env = SnakeEnvironment(screen_width, screen_height, snake_size)
 agent = DQNagent(4, env.states_space.shape, 10000, 32)
 
 agent.model_policy.summary()
