@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 
 class DQNagent:
     def __init__(self, nb_actions, state_size, mem_size, batch_size, optimizer=tf.keras.optimizers.Adam,
-                 learningrate=0.001, gamma=0.8, eps=1.0, eps_min=0.05, tau=4):
+                 learningrate=0.001, gamma=0.8, eps=1.0, eps_min=0.01, tau=4):
         self.nb_actions = nb_actions
         self.state_size = state_size
 
@@ -46,8 +46,8 @@ class DQNagent:
 
     def create_model_cnn(self):
         a = Input(shape=(self.state_size[0], self.state_size[1], self.tau))
-
-        c = Conv2D(filters=32, kernel_size=8, strides=4, kernel_initializer=tf.keras.initializers.VarianceScaling(scale=2.0), input_shape=(self.state_size[0], self.state_size[1], self.tau), activation='relu')(a)
+        b = tf.subtract(tf.divide(a,4),0.5)
+        c = Conv2D(filters=32, kernel_size=8, strides=4, kernel_initializer=tf.keras.initializers.VarianceScaling(scale=2.0), input_shape=(self.state_size[0], self.state_size[1], self.tau), activation='relu')(b)
         c = Conv2D(filters=64, kernel_size=4, strides=2, kernel_initializer=tf.keras.initializers.VarianceScaling(scale=2.0), activation='relu')(c)
         c = Conv2D(filters=64, kernel_size=3, strides=1, kernel_initializer=tf.keras.initializers.VarianceScaling(scale=2.0), activation='relu')(c)
 
