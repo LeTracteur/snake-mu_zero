@@ -6,11 +6,12 @@ import os
 ##############################
 # Game and Training parameters
 ##############################
+wall_size = 7
 
-screen_width = 100
-screen_height = 100
+screen_width = 70 + 2*wall_size
+screen_height = 70 + 2*wall_size
 # reshape = (84, 84)
-snake_size = 10
+snake_size = 7
 
 nb_episodes = 10000
 steps = 2000
@@ -33,8 +34,8 @@ best_score = 0
 eps_val = 0.0
 ###############
 
-env = SnakeEnvironment_2(screen_width, screen_height, snake_size)
-agent = DQNagent(4, env.states_space.shape, 10000, 64)
+env = SnakeEnvironment(screen_width, screen_height, snake_size, wall_size)
+agent = DQNagent(4, env.states_space.shape, 100000, 64)
 
 agent.model_policy.summary()
 
@@ -63,7 +64,6 @@ for ep in range(nb_episodes):
         # copy_s_b = np.stack(agent.state_buffer, axis=2)
         # copy_s_n_b = np.stack(agent.next_state_buffer, axis=2)
         agent.add_to_memory(deepcopy(agent.state_buffer), action, reward, deepcopy(agent.next_state_buffer), terminal)
-
         if terminal:
             score_list.append(env.score)
             steps_list.append(step)
@@ -102,10 +102,10 @@ plt.ylabel('total reward')
 plt.xlabel('episodes')
 plt.show()
 
-plt.plot(reward_list)
-plt.title('episode reward evolution')
-plt.ylabel('reward per ep')
-plt.show()
+# plt.plot(reward_list)
+# plt.title('episode reward evolution')
+# plt.ylabel('reward per ep')
+# plt.show()
 
 plt.plot(steps_list)
 plt.title('steps per ep')
