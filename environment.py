@@ -58,56 +58,56 @@ class SnakeEnvironment:
 		self.snake_head = [self.head_x, self.head_y]
 		self.snake_list = [self.snake_head]
 
-		second_x = self.wall_size if self.head_x == 0 else self.head_x - self.wall_size
+		second_x = 2*self.wall_size if self.head_x == self.wall_size else self.head_x - self.wall_size
 		second_y = self.head_y
 		chunck = [second_x, second_y]
 		self.snake_list.insert(0, chunck)
 
 		self.foodx, self.foody = add_food(self.possible_x, self.possible_y, self.snake_list)
 
-		board_status = np.copy(self.states_space)
+		self.board_status = np.copy(self.states_space)
 
 		for i in range(self.snake_size):
 			for j in range(self.snake_size):
-				board_status[self.foody+i][self.foodx+j] = GREEN_ID
-				board_status[self.snake_head[1]+i][self.snake_head[0]+j] = HEAD_YELLOW_ID
+				self.board_status[self.foody+i][self.foodx+j] = GREEN_ID
+				self.board_status[self.snake_head[1]+i][self.snake_head[0]+j] = HEAD_YELLOW_ID
 				for b in self.snake_list[:-1]:
-					board_status[b[1]+i][b[0]+j] = BODY_YELLOW_ID
+					self.board_status[b[1]+i][b[0]+j] = BODY_YELLOW_ID
 
 		self.score = 0
 
-		# board_status = scale_lumininance(board_status)/255.0
-		# board_status = transform.resize(board_status, (84, 84))
-		return board_status
+		# self.board_status = scale_lumininance(self.board_status)/255.0
+		# self.board_status = transform.resize(self.board_status, (84, 84))
+		return self.board_status
 
 	def observation(self):
-		board_status = np.copy(self.states_space)
+		self.board_status = np.copy(self.states_space)
 		for i in range(self.snake_size):
 			for j in range(self.snake_size):
-				board_status[self.foody+i][self.foodx+j] = GREEN_ID
-				board_status[self.snake_head[1]+i][self.snake_head[0]+j] = HEAD_YELLOW_ID
+				self.board_status[self.foody+i][self.foodx+j] = GREEN_ID
+				self.board_status[self.snake_head[1]+i][self.snake_head[0]+j] = HEAD_YELLOW_ID
 
-		# board_status = scale_lumininance(board_status)/255.0
+		# self.board_status = scale_lumininance(self.board_status)/255.0
 
-		return board_status
+		return self.board_status
 
 	def get_state_map(self):
-		board_status = np.copy(self.states_space)
+		self.board_status = np.copy(self.states_space)
 
 		for i in range(self.snake_size):
 			for j in range(self.snake_size):
-				board_status[self.foody + i][self.foodx + j] = GREEN_ID
+				self.board_status[self.foody + i][self.foodx + j] = GREEN_ID
 				for b in self.snake_list[:-1]:
-					board_status[b[1]+i][b[0]+j] = BODY_YELLOW_ID
+					self.board_status[b[1]+i][b[0]+j] = BODY_YELLOW_ID
 
-		if 0 <= self.snake_head[0] < self.width and 0 <= self.snake_head[1] < self.length:
+		if 0 <= self.snake_head[0] < self.width+2*self.wall_size and 0 <= self.snake_head[1] < self.length+2*self.wall_size:
 			for i in range(self.snake_size):
 				for j in range(self.snake_size):
-					board_status[self.snake_head[1] + i][self.snake_head[0] + j] = HEAD_YELLOW_ID
+					self.board_status[self.snake_head[1] + i][self.snake_head[0] + j] = HEAD_YELLOW_ID
 
-		# board_status = scale_lumininance(board_status)/255.0
-		# board_status = transform.resize(board_status, (84, 84))
-		return board_status
+		# self.board_status = scale_lumininance(self.board_status)/255.0
+		# self.board_status = transform.resize(self.board_status, (84, 84))
+		return self.board_status
 
 	def step(self, action):
 		terminal = False
@@ -130,23 +130,23 @@ class SnakeEnvironment:
 		self.snake_head = [self.head_x, self.head_y]
 		self.snake_list.append(self.snake_head)
 
-		if self.head_x >= self.width or self.head_x < 0 or self.head_y >= self.length or self.head_y < 0:
+		if self.head_x >= self.width+self.wall_size or self.head_x < self.wall_size or self.head_y >= self.length + self.wall_size or self.head_y < self.wall_size:
 			terminal = True
-			reward = -250.0
+			reward = -1.0
 
 		for x in self.snake_list[:-1]:
 			if x == self.snake_head:
 				terminal = True
-				reward = -250.0
+				reward = -1.0
 
 		if not terminal:
 			if self.head_x == self.foodx and self.head_y == self.foody:
 				self.foodx, self.foody = add_food(self.possible_x, self.possible_y, self.snake_list)
 				add_block = True
 				self.score += 1
-				reward = 100.0
+				reward = 10.0#*(self.score)
 			else:
-				reward = -1.0
+				reward = 0
 
 		if not add_block:
 			del self.snake_list[0]

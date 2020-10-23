@@ -36,7 +36,7 @@ class DQNagent:
         self.memory = deque(maxlen=mem_size)
 
         # tf.keras.optimizersAdam(learning_rate=1e-4, epsilon=1e-6)
-        self.optimizer = tf.keras.optimizers.Adam(learning_rate=1e-4, epsilon=1e-6)
+        self.optimizer = tf.keras.optimizers.Adam(learning_rate=0.5e-3)#, epsilon=1e-6)
 
         self.model_policy = self.create_model_cnn()
         self.model_target = self.create_model_cnn()
@@ -91,17 +91,42 @@ class DQNagent:
     def display_model(self):
         self.model_policy.summary()
 
-    def act(self, state):
+    def act(self, state, snake_list=None):
         self.state_buffer.append(state)
         if np.random.rand() < self.current_eps:
-            return np.random.randint(self.nb_actions)
+            head = snake_list[-1]
+            before = snake_list[-2]
+            x_res = head[0] - before[0]
+            y_res = head[1] - before[1]
+            a = [0,1,2,3]
+            if head[0] == 1:
+                a.remove(0)
+            elif head[0] == 11:
+                a.remove(2)
+            
+            if head[1] == 1:
+                a.remove(1)
+            elif head[1] == 11:
+                a.remove(3)
+
+            if y_res < 0:
+                a.remove(2)
+            elif y_res >0:
+                a.remove(0)
+            elif x_res > 0:
+                a.remove(3)
+            else:
+                a.remove(1)
+
+            return np.random.choice(a)
 
         ss_state = np.stack(self.state_buffer, axis=2)
         r_state = np.expand_dims(ss_state, axis=0)
-
+        
         actions_t = self.model_policy(r_state, training=False)
         actions = actions_t.numpy()
         return np.argmax(actions[0])
+
 
     def add_to_memory(self, state, action, reward, n_state, terminal):
         self.memory.append((state, action, reward, n_state, terminal))
