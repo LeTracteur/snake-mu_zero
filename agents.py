@@ -28,7 +28,7 @@ class ExperienceReplay:
 
     def add_to_memory(self, state, action, reward, n_state, terminal, loss=1.0):
         
-        if self.buffer_counter > self.max_size:
+        if self.buffer_counter > self.max_size-1:
             pos = np.argmin(self.loss)
         else:
             pos = self.buffer_counter
@@ -128,8 +128,9 @@ class DQNagent:
 
         b = tf.subtract(tf.divide(a, 4.0), 0.5)
 
-        c = Conv2D(filters=16, kernel_size=3, strides=1, padding='SAME', input_shape=(self.state_size[0], self.state_size[1], self.tau), activation='selu')(b)
-        c = Conv2D(filters=32, kernel_size=3, strides=1, padding='SAME', activation='selu')(c)
+        c = Conv2D(filters=16, kernel_size=3, strides=1, input_shape=(self.state_size[0], self.state_size[1], self.tau), activation='selu')(b)
+        c = Conv2D(filters=32, kernel_size=3, strides=1, activation='selu')(c)
+        c = Conv2D(filters=64, kernel_size=3, strides=1, activation='selu')(c)
 
         f = Flatten()(c)
         d0 = Dense(256, activation="selu")(f)

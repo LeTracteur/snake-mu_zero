@@ -1,17 +1,18 @@
 # from old.environment import *
-from environment import *
+from environment_2 import *
 from agents import *
 
 ##############################
 # Game and Training parameters
 ##############################
+wall_size = 7
 
-screen_width = 100
-screen_height = 100
-# reshape = (84, 84)
-snake_size = 10
+screen_width = 70 + 2*wall_size
+screen_height = 70 + 2*wall_size
 
-nb_episodes = 10000
+snake_size = 7
+
+nb_episodes = 30000
 steps = 2000
 
 counter = 0
@@ -32,8 +33,8 @@ best_score = 0
 eps_val = 0.0
 ###############
 
-env = SnakeEnvironment(screen_width, screen_height, snake_size)
-agent = DQNagent(4, env.states_space.shape, 10000, 32)
+env = SnakeEnvironment_2(screen_width, screen_height, snake_size, wall_size)
+agent = DQNagent(4, env.states_space.shape, 10000, 64)
 
 agent.model_policy.summary()
 
@@ -47,10 +48,10 @@ for ep in range(nb_episodes):
 		agent.next_state_buffer.append(state)
 
 	for step in range(steps):
-		agent.update_epsilon()
+		agent.update_epsilonv2(nb_episodes, 0.5)
 
 		# env.render()
-		action = agent.act(state)
+		action = agent.act(state, env.snake_list)
 		new_state, reward, terminal = env.step(action)
 
 		agent.next_state_buffer.append(new_state)
@@ -72,7 +73,7 @@ for ep in range(nb_episodes):
 
 		if counter > agent.batch_size:
 			# if ep % c1 == 0:
-			loss = agent.optimize()
+			loss = agent.optimize_per()
 
 		if counter % c2 == 0:
 			agent.update_weights()
@@ -83,7 +84,7 @@ for ep in range(nb_episodes):
 		counter += 1
 
 	if ep > agent.batch_size:
-		agent.optimize()
+		agent.optimize_per()
 	agent.update_weights()
 
 	if env.score > best_score:
