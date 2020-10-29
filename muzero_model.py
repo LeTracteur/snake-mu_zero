@@ -1,16 +1,17 @@
 import tensorflow.keras.layers as tfkl
+from tensorflow.keras import Model
 
 class FullyConnectedNetwork(tfkl.Layer):
-    def __init__(self, layer_sizes, output_size, activation='leaky_relu'):
+    def __init__(self, layer_sizes, output_size, activation=tf.nn.leaky_relu):
         super().__init__()
         self._act = activation
 	self._size_list = layer_sizes
         self._output_size = output_size
-        self.dense = [tfkl.Dense(i, act=self._act) for i in self._size_list]
-        self.final = tfkl.Dense(output_size, act=sel._act)
+        self.dense = [tfkl.Dense(i, activation=self._act) for i in self._size_list]
+        self.final = tfkl.Dense(output_size, activation=self._act)
 
     def __call__(self, x):
-	out = dense[0](x)
+	out = self.dense[0](x)
         for i in range(1, len(self.dense)):
 	    out = self.dense[i](out)
         out = self.final(out)
@@ -19,9 +20,9 @@ class FullyConnectedNetwork(tfkl.Layer):
 class ResidualBlock(tfkl.Layer):
     def __init__(self, filters, stride=1):
         super().__init__()
-        self.conv1 = tfkl.Conv2D(filters, kernel_size=(3,3), stride=(stride,stride), padding='same', bias=False)
+        self.conv1 = tfkl.Conv2D(filters, (3,3), strides=(stride,stride), padding='same', use_bias=False)
         self.bn1 = tfkl.BatchNormalization()
-        self.conv2 = tfkl.Conv2D(filters, kernel_size=(3,3), stride=(stride,stride), padding='same', bias=False)
+        self.conv2 = tfkl.Conv2D(filters, (3,3), strides=(stride,stride), padding='same', use_bias=False)
         self.bn2 = tfkl.BatchNormalization()
 
     def __call__(self, x):
@@ -37,35 +38,35 @@ class ResidualBlock(tfkl.Layer):
 class DownSample(tfkl.Layer):
     def __init__(self, depth):
         super().__init__()
-        self.conv1 = tfkl.Conv2D(depth // 2, kernel_size=(3,3), stride=(2,2), padding='same', bias=False)
+        self.conv1 = tfkl.Conv2D(depth // 2, (3,3), strides=(2,2), padding='same', use_bias=False)
         self.resblocks1 = [ResidualBlock(depth // 2) for _ in range(2)]
-        self.conv2 = tfkl.Conv2D(depth, kernel_size=(3,3), stride=(2,2), padding='same', bias=False)
+        self.conv2 = tfkl.Conv2D(depth, (3,3), strides=(2,2), padding='same', use_bias=False)
         self.resblocks2 = [ResidualBlock(depth) for _ in range(3)]
-        self.pooling1 = tfkl.AveragePooling2D(kernel_size=(3,3), stride=(2,2), padding='same')
+        self.pooling1 = tfkl.AveragePooling2D((3,3), strides=(2,2), padding='same')
         self.resblocks3 = [ResidualBlock(depth) for _ in range(3)]
-        self.pooling2 = tfkl.AveragePooling2D(kernel_size=(3,3), stride=(2,2), padding='same')
+        self.pooling2 = tfkl.AveragePooling2D((3,3), strides=(2,2), padding='same')
 
     def __call__(self, x):
         out = self.conv1(x)
-	for block in resblocks1:
-            out = self.block(out)
+	for block in self.resblocks1:
+            out = block(out)
         out = self.conv2(out)
-	for block in resblocks2:
-            out = self.block(out)
+	for block in self.resblocks2:
+            out = block(out)
         out = self.pooling1(out)
-	for block in resblocks3:
-            out = self.block(out)
+	for block in self.resblocks3:
+            out = block(out)
         out = self.pooling2(out)
         return out
 
-class RepresentationNetwork(tools.Module):
+class RepresentationNetwork(Model):
     def __init__(self, obs_shape, stacked_obs, blocks, depth, ds):
         super().__init__()
         self.use_ds = ds
         if self.use_ds:
             self.ds = DownSample(depth)
         else:
-            self.conv = tfkl.Conv2D(depth, kernel_size=(3,3), stride=(2,2), padding='same', bias=False)
+            self.conv = tfkl.Conv2D(depth, (3,3), strides=(2,2), padding='same', use_bias=False)
             self.bn = tfkl.BatchNormalization()
         self.resblocks = [ResidualBlock(depth) for _ in range(blocks)]
 
@@ -82,13 +83,14 @@ class RepresentationNetwork(tools.Module):
         return out
 
 
-class DynamicsNetwork(torch.nn.Module):
+class DynamicsNetwork(Model):
     def __init__(self, blocks, depth, reduced_depth, fc_reward_layers, full_sup_size):
         super().__init__()
-        self.conv = tfkl.Conv2D(depth - 1, kernel_size=(3,3), stride=(2,2), padding='same', bias=False)
+        self.conv = tfkl.Conv2D(depth - 1, (3,3), strides=(2,2), padding='same', use_bias=False)
         self.bn = tfkl.BatchNormalization()
         self.resblocks = [ResidualBlock(depth - 1) for _ in range(blocks)]
-        self.conv1x1 = tfkl.Conv2d(reduced_depth, kernel_size=(1,1))
+        self.conv1x1 = tfkl.Conv2D(reduced_depth, (1,1))
+        self.flat = tfkl.Flatten()
         self.fc = FullyConnectedNetwork(fc_reward_layers, full_sup_size, activation=None)
 
     def __call__(self, x):
@@ -99,16 +101,17 @@ class DynamicsNetwork(torch.nn.Module):
             out = block(out)
         state = out
         out = self.conv1x1(out)
-        out = tf.reshape(out, [-1])
+        out = self.flat(out)
         reward = self.fc(out)
         return state, reward
 
-class PredictionNetwork(torch.nn.Module):
+class PredictionNetwork(Model):
     def __init__(self, act_dim, blocks, depth, reduced_depth, fc_value_layers, fc_policy_layers, full_sup_size):
         super().__init__()
         self.resblocks =  [ResidualBlock(depth) for _ in range(blocks)]
 
         self.conv1x1 = tfkl.Conv2D(reduced_depth, kernel_size=(1,1))
+        self.flat = tfkl.Flatten()
         self.fc_value = FullyConnectedNetwork(fc_value_layers, full_sup_size, activation=None)
         self.fc_policy = FullyConnectedNetwork(fc_policy_layers, action_space_size, activation=None)
 
@@ -117,7 +120,7 @@ class PredictionNetwork(torch.nn.Module):
         for block in self.resblocks:
             out = block(out)
         out = self.conv1x1(out)
-        out = tf.reshape(out, [-1])
+        out = self.flat(out)
         value = self.fc_value(out)
         policy = self.fc_policy(out)
         return policy, value
