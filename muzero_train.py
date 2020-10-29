@@ -7,6 +7,7 @@ from environment_new import *
 def main(stg):
     settings = utils.Obj(stg)
     env = SnakeEnv(settings.env)
+
     env.reset()
     env.render()
 

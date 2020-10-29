@@ -6,7 +6,6 @@ from tensorflow import keras
 from skimage import transform
 
 
-
 class SnakeEnv:
     def __init__(self, settings):
         self.settings = settings
