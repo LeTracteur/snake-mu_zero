@@ -1,3 +1,4 @@
+import tf
 import tensorflow.keras.layers as tfkl
 from tensorflow.keras import Model
 
@@ -11,7 +12,7 @@ class FullyConnectedNetwork(tfkl.Layer):
         self.final = tfkl.Dense(output_size, activation=self._act)
 
     def __call__(self, x):
-	out = self.dense[0](x)
+        out = self.dense[0](x)
         for i in range(1, len(self.dense)):
             out = self.dense[i](out)
             out = self.final(out)
@@ -48,14 +49,14 @@ class DownSample(tfkl.Layer):
 
     def __call__(self, x):
         out = self.conv1(x)
-        for block in resblocks1:
-            out = self.block(out)
+        for block in self.resblocks1:
+            out = block(out)
         out = self.conv2(out)
-        for block in resblocks2:
-            out = self.block(out)
+        for block in self.resblocks2:
+            out = block(out)
         out = self.pooling1(out)
-        for block in resblocks3:
-            out = self.block(out)
+        for block in self.resblocks3:
+            out = block(out)
         out = self.pooling2(out)
         return out
 
