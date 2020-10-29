@@ -4,17 +4,17 @@ class FullyConnectedNetwork(tfkl.Layer):
     def __init__(self, layer_sizes, output_size, activation='leaky_relu'):
         super().__init__()
         self._act = activation
-	self._size_list = layer_sizes
+    self._size_list = layer_sizes
         self._output_size = output_size
         self.dense = [tfkl.Dense(i, act=self._act) for i in self._size_list]
         self.final = tfkl.Dense(output_size, act=sel._act)
 
     def __call__(self, x):
-	out = dense[0](x)
+    out = dense[0](x)
         for i in range(1, len(self.dense)):
-	    out = self.dense[i](out)
+        out = self.dense[i](out)
         out = self.final(out)
-	return out
+    return out
 
 class ResidualBlock(tfkl.Layer):
     def __init__(self, filters, stride=1):
@@ -47,13 +47,13 @@ class DownSample(tfkl.Layer):
 
     def __call__(self, x):
         out = self.conv1(x)
-	for block in resblocks1:
+    for block in resblocks1:
             out = self.block(out)
         out = self.conv2(out)
-	for block in resblocks2:
+    for block in resblocks2:
             out = self.block(out)
         out = self.pooling1(out)
-	for block in resblocks3:
+    for block in resblocks3:
             out = self.block(out)
         out = self.pooling2(out)
         return out
