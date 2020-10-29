@@ -103,7 +103,6 @@ class DynamicsNetwork(torch.nn.Module):
         reward = self.fc(out)
         return state, reward
 
-
 class PredictionNetwork(torch.nn.Module):
     def __init__(self, act_dim, blocks, depth, reduced_depth, fc_value_layers, fc_policy_layers, full_sup_size):
         super().__init__()
@@ -165,59 +164,40 @@ class MuZero(AbstractNetwork):
 
     def representation(self, obs):
         st = self.representation_network(obs)
-
         # Scale encoded state between [0, 1] (See appendix paper Training)
-        min_st = tf.reduce_min(tf.reshape(st, [-1, st.shape[1], st.shape[2] * st.shape[3]]), axis=2, keepdim=True)#.view(-1, st.shape[1], st.shape[2] * st.shape[3]).min(2, keepdim=True)[0].unsqueeze(-1))
-        max_st = tf.reuce_max(tf.reshape(st, [-1, st.shape[1], st.shape[2] * st.shape[3]]), axis=2, keepdim=True)#(
-        
-        scale_st = max_encoded_state - min_encoded_state
+        min_st = tf.reduce_min(tf.reshape(st, [-1, st.shape[1], st.shape[2] * st.shape[3]]), axis=2, keepdim=True)
+        max_st = tf.reuce_max(tf.reshape(st, [-1, st.shape[1], st.shape[2] * st.shape[3]]), axis=2, keepdim=True)
+        scale_st = max_st - min_st
         scale_st[scale_st < 1e-5] += 1e-5
         st_norm = (st - min_st) / scale_st
         return st_norm
 
-    def dynamics(self, encoded_state, action):
+    def dynamics(self, state, action):
         # Stack encoded_state with a game specific one hot encoded action (See paper appendix Network Architecture)
-        action_one_hot = (torch.ones((encoded_state.shape[0], 1, encoded_state.shape[2], encoded_state.shape[3])).to(action.device).float())
-        action_one_hot = (action[:, :, None, None] * action_one_hot / self.action_space_size)
+        action_one_hot = tf.ones((state.shape[0], 1, state.shape[2], state.shape[3], dtype=tf.dtypes.float32)
+        action_one_hot = action[:, :, None, None] * action_one_hot / self.action_space_size
         x = torch.cat((encoded_state, action_one_hot), dim=1)
-        next_encoded_state, reward = self.dynamics_network(x)
+        nxt_state, reward = self.dynamics_network(x)
 
         # Scale encoded state between [0, 1] (See paper appendix Training)
-        min_next_encoded_state = (next_encoded_state.view(-1, next_encoded_state.shape[1], next_encoded_state.shape[2] * next_encoded_state.shape[3]).min(2, keepdim=True)[0].unsqueeze(-1))
-        max_next_encoded_state = (next_encoded_state.view(-1, next_encoded_state.shape[1], next_encoded_state.shape[2] * next_encoded_state.shape[3]).max(2, keepdim=True)[0].unsqueeze(-1))
-        scale_next_encoded_state = max_next_encoded_state - min_next_encoded_state
-        scale_next_encoded_state[scale_next_encoded_state < 1e-5] += 1e-5
-        next_encoded_state_normalized = (next_encoded_state - min_next_encoded_state) / scale_next_encoded_state
-        return next_encoded_state_normalized, reward
+        min_nxt_state = (nxt_state.view(-1, nxt_state.shape[1], nxt_state.shape[2] * nxt_state.shape[3]).min(2, keepdim=True)[0].unsqueeze(-1))
+        max_nxt_state = (nxt_state.view(-1, nxt_state.shape[1], nxt_state.shape[2] * nxt_state.shape[3]).max(2, keepdim=True)[0].unsqueeze(-1))
+        scale_nxt_state = max_nxt_state - min_nxt_state
+        scale_nxt_state[scale_nxt_state < 1e-5] += 1e-5
+        nxt_state_normalized = (nxt_state - min_nxt_state) / scale_nxt_state
+        return nxt_state_normalized, reward
 
     def initial_inference(self, observation):
         encoded_state = self.representation(observation)
         policy_logits, value = self.prediction(encoded_state)
         # reward equal to 0 for consistency
-        reward = (torch.zeros(1, self.full_support_size).scatter(1, torch.tensor([[self.full_support_size // 2]]).long(), 1.0).repeat(len(observation), 1).to(observation.device))
+        reward = (tf.zeros(1, self.full_support_size).scatter(1, torch.tensor([[self.full_support_size // 2]]).long(), 1.0).repeat(len(observation), 1))
         return (value, reward, policy_logits, encoded_state)
 
     def recurrent_inference(self, encoded_state, action):
         next_encoded_state, reward = self.dynamics(encoded_state, action)
         policy_logits, value = self.prediction(next_encoded_state)
         return value, reward, policy_logits, next_encoded_state
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 def support_to_scalar(logits, support_size):
     """
@@ -233,7 +213,6 @@ def support_to_scalar(logits, support_size):
     x = tf.sign(x) * (((tf.sqrt(1 + 4 * 0.001 * (tf.abs(x) + 1 + 0.001)) - 1) / (2 * 0.001))** 2 - 1)
     return x
 
-
 def scalar_to_support(x, support_size):
     """
     Transform a scalar to a categorical representation with (2 * support_size + 1) categories
@@ -241,15 +220,11 @@ def scalar_to_support(x, support_size):
     """
     # Reduce the scale (defined in https://arxiv.org/abs/1805.11593)
     x = tf.sign(x) * (tf.sqrt(tf.abs(x) + 1) - 1) + 0.001 * x
-
-    # Encode on a vector
-    x = tf.clamp(x, -support_size, support_size)
-    floor = x.floor()
+    x = tf.clip_by_value(x, -support_size, support_size)
+    floor = tf.floor(x)
+    floor2 = tf.floor(x)
     prob = x - floor
-    logits = tf.zeros(x.shape[0], x.shape[1], 2 * support_size + 1)
-    logits.scatter_(2, (floor + support_size).long().unsqueeze(-1), (1 - prob).unsqueeze(-1))
-    indexes = floor + support_size + 1
-    prob = prob.masked_fill_(2 * support_size < indexes, 0.0)
-    indexes = indexes.masked_fill_(2 * support_size < indexes, 0.0)
-    logits.scatter_(2, indexes.long().unsqueeze(-1), prob.unsqueeze(-1))
+    logits1 = tf.transpose(tf.one_hot(floor, 2*support_size+1))*(1-prob)
+    logits2 = tf.transpose(tf.one_hot(floor+1, 2*support_size+1))*(prob)
+    logits = tf.transpose(logits1+logits2)
     return logits
