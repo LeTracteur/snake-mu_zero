@@ -5,7 +5,7 @@ class FullyConnectedNetwork(tfkl.Layer):
     def __init__(self, layer_sizes, output_size, activation=tf.nn.leaky_relu):
         super().__init__()
         self._act = activation
-	self._size_list = layer_sizes
+        self._size_list = layer_sizes
         self._output_size = output_size
         self.dense = [tfkl.Dense(i, activation=self._act) for i in self._size_list]
         self.final = tfkl.Dense(output_size, activation=self._act)
@@ -13,9 +13,9 @@ class FullyConnectedNetwork(tfkl.Layer):
     def __call__(self, x):
 	out = self.dense[0](x)
         for i in range(1, len(self.dense)):
-	    out = self.dense[i](out)
-        out = self.final(out)
-	return out
+            out = self.dense[i](out)
+            out = self.final(out)
+        return out
 
 class ResidualBlock(tfkl.Layer):
     def __init__(self, filters, stride=1):
@@ -48,14 +48,14 @@ class DownSample(tfkl.Layer):
 
     def __call__(self, x):
         out = self.conv1(x)
-	for block in self.resblocks1:
-            out = block(out)
+        for block in resblocks1:
+            out = self.block(out)
         out = self.conv2(out)
-	for block in self.resblocks2:
-            out = block(out)
+        for block in resblocks2:
+            out = self.block(out)
         out = self.pooling1(out)
-	for block in self.resblocks3:
-            out = block(out)
+        for block in resblocks3:
+            out = self.block(out)
         out = self.pooling2(out)
         return out
 
@@ -81,7 +81,6 @@ class RepresentationNetwork(Model):
         for block in self.resblocks:
             out = block(out)
         return out
-
 
 class DynamicsNetwork(Model):
     def __init__(self, blocks, depth, reduced_depth, fc_reward_layers, full_sup_size):
