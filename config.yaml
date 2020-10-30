@@ -28,6 +28,9 @@ buffer:
   batch_size: 1024
   unroll_steps: 5
   td_steps: 10
+  reanalize: 1
+  stacked_frame: 32
+  support_size: 601
 model:
   depth: 256
   reduced_depth: 128
@@ -39,3 +42,5 @@ model:
   value_layers: []
   policy_layers: []
   reward_layers: []
+game:
+  discount: 0.99
