@@ -20,7 +20,8 @@ class ReplayBuffer:
         self.buffer.append(game)
 
     def get_batch(self, model):
-        batch = {"target_values": [],
+        batch = {"observation_batch": [],
+                 "target_values": [],
                  "target_rewards": [],
                  "target_policies": [],
                  "target_actions": []}
@@ -30,6 +31,7 @@ class ReplayBuffer:
 
         for (g, i) in game_pos:
             t_val, t_reward, t_policies, t_actions = self.make_target(g, i, model)
+            batch["observation_batch"].append(g.get_stacked_observations(i, self.num_stacked_obs))
             batch["target_values"].append(t_val)
             batch["target_rewards"].append(t_reward)
             batch["target_policies"].append(t_policies)

@@ -1,3 +1,5 @@
+nb_ep: 100000
+steps: 2000
 env:
   action_space: 4
   grid_width: 10
@@ -20,9 +22,6 @@ env:
   f_color:
     id: 4
     rgb: (2, 213, 27)
-agent:
-  nb_ep: 100000
-  steps: 2000
 buffer:
   buffer_size: 1e6
   batch_size: 1024
