@@ -11,7 +11,7 @@ class FullyConnectedNetwork(tfkl.Layer):
         self.dense = [tfkl.Dense(i, activation=self._act) for i in self._size_list]
         self.final = tfkl.Dense(output_size, activation=self._act)
 
-    def __call__(self, x):
+    def call(self, x):
         out = self.dense[0](x)
         for i in range(1, len(self.dense)):
             out = self.dense[i](out)
@@ -26,7 +26,7 @@ class ResidualBlock(tfkl.Layer):
         self.conv2 = tfkl.Conv2D(filters, (3,3), strides=(stride,stride), padding='same', use_bias=False)
         self.bn2 = tfkl.BatchNormalization()
 
-    def __call__(self, x):
+    def call(self, x):
         out = self.conv1(x)
         out = self.bn1(out)
         out = tf.nn.relu(out)
@@ -47,7 +47,7 @@ class DownSample(tfkl.Layer):
         self.resblocks3 = [ResidualBlock(depth) for _ in range(3)]
         self.pooling2 = tfkl.AveragePooling2D((3,3), strides=(2,2), padding='same')
 
-    def __call__(self, x):
+    def call(self, x):
         out = self.conv1(x)
         for block in self.resblocks1:
             out = block(out)
@@ -71,7 +71,7 @@ class RepresentationNetwork(Model):
             self.bn = tfkl.BatchNormalization()
         self.resblocks = [ResidualBlock(settings.depth) for _ in range(settings.blocks)]
 
-    def __call__(self, x):
+    def call(self, x):
         if self.use_ds:
             out = self.ds(x)
         else:
@@ -93,7 +93,7 @@ class DynamicsNetwork(Model):
         self.flat = tfkl.Flatten()
         self.fc = FullyConnectedNetwork(settings.reward_layers, settings.support_size, activation=None)
 
-    def __call__(self, x):
+    def call(self, x):
         out = self.conv(x)
         out = self.bn(out)
         out = tf.nn.relu(out)
@@ -115,7 +115,7 @@ class PredictionNetwork(Model):
         self.fc_value = FullyConnectedNetwork(settings.value_layers, setting.support_size, activation=None)
         self.fc_policy = FullyConnectedNetwork(settings.policy_layers, settings.action_space, activation=None)
 
-    def __call__(self, x):
+    def call(self, x):
         out = x
         for block in self.resblocks:
             out = block(out)
@@ -140,34 +140,31 @@ class MuZero(Model):
 
     def representation(self, obs):
         st = self.representation_network(obs)
-        # Scale encoded state between [0, 1] (See appendix paper Training)
-        min_st = tf.reduce_min(tf.reshape(st, [-1, st.shape[1], st.shape[2] * st.shape[3]]), axis=2, keepdim=True)
-        max_st = tf.reuce_max(tf.reshape(st, [-1, st.shape[1], st.shape[2] * st.shape[3]]), axis=2, keepdim=True)
-        scale_st = max_st - min_st
-        scale_st[scale_st < 1e-5] += 1e-5
-        st_norm = (st - min_st) / scale_st
+        # [0,1] scaling
+        min_state = tf.reduce_min(state, axis=(-2,-1), keepdims=True)
+        max_state = tf.reuce_max(state, axis=(-2,-1), keepdims=True)
+        scale_state = (max_state - min_state) + 1e-5
+        state_norm = (state - min_state) / scale_state
         return st_norm
 
     def dynamics(self, state, action):
-        # Stack encoded_state with a game specific one hot encoded action (See paper appendix Network Architecture)
-        action_one_hot = tf.ones((state.shape[0], 1, state.shape[2], state.shape[3], dtype=tf.dtypes.float32)
-        action_one_hot = action[:, :, None, None] * action_one_hot / self.action_space_size
-        x = torch.cat((encoded_state, action_one_hot), dim=1)
+        # Stack encoded_state with action as plane
+        action_one_hot = tf.ones((state.shape[0], state.shape[1], state.shape[2], 1), dtype=tf.dtypes.float32)
+        action_one_hot = action * action_one_hot / self.action_space_size
+        x = tf.cat((state, action_one_hot), dim=-1)
         nxt_state, reward = self.dynamics_network(x)
 
-        # Scale encoded state between [0, 1] (See paper appendix Training)
-        min_nxt_state = (nxt_state.view(-1, nxt_state.shape[1], nxt_state.shape[2] * nxt_state.shape[3]).min(2, keepdim=True)[0].unsqueeze(-1))
-        max_nxt_state = (nxt_state.view(-1, nxt_state.shape[1], nxt_state.shape[2] * nxt_state.shape[3]).max(2, keepdim=True)[0].unsqueeze(-1))
-        scale_nxt_state = max_nxt_state - min_nxt_state
-        scale_nxt_state[scale_nxt_state < 1e-5] += 1e-5
+        # [0,1] scaling
+        min_nxt_st = tf.reduce_min(nxt_state, axis=(-2,-1), keepdims=True)
+        max_nxt_st = tf.reuce_max(nxt_state, axis=(-2,-1), keepdims=True)
+        scale_nxt_state = max_nxt_state - min_nxt_state + 1e-5
         nxt_state_normalized = (nxt_state - min_nxt_state) / scale_nxt_state
         return nxt_state_normalized, reward
 
     def initial_inference(self, observation):
         encoded_state = self.representation(observation)
         policy_logits, value = self.prediction(encoded_state)
-        # reward equal to 0 for consistency
-        reward = (tf.zeros(1, self.full_support_size).scatter(1, torch.tensor([[self.full_support_size // 2]]).long(), 1.0).repeat(len(observation), 1))
+        reward = tf.onehot(tf.ones(len(observation),dtype=tf.int32)*self.full_support_size//2, support_size)
         return (value, reward, policy_logits, encoded_state)
 
     def recurrent_inference(self, encoded_state, action):
@@ -198,7 +195,7 @@ def scalar_to_support(x, support_size):
     floor = tf.floor(x)
     floor2 = tf.floor(x)
     prob = x - floor
-    logits1 = tf.transpose(tf.one_hot(floor, 2*support_size+1))*(1-prob)
-    logits2 = tf.transpose(tf.one_hot(floor+1, 2*support_size+1))*(prob)
+    logits1 = tf.transpose(tf.one_hot(floor+support_size, 2*support_size+1))*(1-prob)
+    logits2 = tf.transpose(tf.one_hot(floor+1+support_size, 2*support_size+1))*(prob)
     logits = tf.transpose(logits1+logits2)
     return logits
