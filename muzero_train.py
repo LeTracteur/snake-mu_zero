@@ -25,7 +25,7 @@ def main(stg):
             # stacked_observations = game.get_stacked_observations(-1, settings.model.stacked_frame)
 
             # waiting for monte carlo to be working
-            action = np.random.randint(env.action_space)
+            action = int(input("action: "))
 
             new_obs, reward, terminal = env.step(action)
 
