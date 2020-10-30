@@ -178,12 +178,11 @@ class MuZero(Model):
 def support_to_scalar(logits, support_size):
     """
     Transform a categorical representation to a scalar
-    See paper appendix Network Architecture
     """
     # Decode to a scalar
-    probabilities = tf.nn.softmax(logits, dim=1)
-    support = (torch.tensor([x for x in range(-support_size, support_size + 1)]).expand(probabilities.shape)#.float().to(device=probabilities.device))
-    x = tf.reduce_sum(support * probabilities, axis=1, keepdim=True)
+    prob = tf.nn.softmax(logits, dim=1)
+    support = tf.range(-support_size, support_size + 1, 1, dtype=tf.float32)
+    x = tf.reduce_sum(tf.multiply(prob,support), axis=-1, keepdims=True)
 
     # Invert the scaling (defined in https://arxiv.org/abs/1805.11593)
     x = tf.sign(x) * (((tf.sqrt(1 + 4 * 0.001 * (tf.abs(x) + 1 + 0.001)) - 1) / (2 * 0.001))** 2 - 1)
@@ -191,8 +190,7 @@ def support_to_scalar(logits, support_size):
 
 def scalar_to_support(x, support_size):
     """
-    Transform a scalar to a categorical representation with (2 * support_size + 1) categories
-    See paper appendix Network Architecture
+    Transform a scalar to a categorical representation
     """
     # Reduce the scale (defined in https://arxiv.org/abs/1805.11593)
     x = tf.sign(x) * (tf.sqrt(tf.abs(x) + 1) - 1) + 0.001 * x
