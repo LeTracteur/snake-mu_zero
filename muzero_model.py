@@ -91,7 +91,7 @@ class DynamicsNetwork(Model):
         self.resblocks = [ResidualBlock(settings.depth) for _ in range(settings.blocks)]
         self.conv1x1 = tfkl.Conv2D(settings.reduced_depth, (1,1))
         self.flat = tfkl.Flatten()
-        self.fc = FullyConnectedNetwork(settings.reward_layers, settings.support_size, activation=None)
+        self.fc = FullyConnectedNetwork(settings.reward_layers, settings.support_size*2+1, activation=None)
 
     def call(self, x):
         out = self.conv(x)
@@ -112,7 +112,7 @@ class PredictionNetwork(Model):
 
         self.conv1x1 = tfkl.Conv2D(settings.reduced_depth, kernel_size=(1,1))
         self.flat = tfkl.Flatten()
-        self.fc_value = FullyConnectedNetwork(settings.value_layers, setting.support_size, activation=None)
+        self.fc_value = FullyConnectedNetwork(settings.value_layers, setting.support_size*2+1, activation=None)
         self.fc_policy = FullyConnectedNetwork(settings.policy_layers, settings.action_space, activation=None)
 
     def call(self, x):
@@ -164,13 +164,13 @@ class MuZero(Model):
     def initial_inference(self, observation):
         encoded_state = self.representation(observation)
         policy_logits, value = self.prediction(encoded_state)
-        reward = tf.onehot(tf.ones(len(observation),dtype=tf.int32)*self.full_support_size//2, support_size)
+        reward = tf.onehot(tf.ones(len(observation),dtype=tf.int32)*self.sts.support_size, self.sts.support_size*2+1)
         return (value, reward, policy_logits, encoded_state)
 
-    def recurrent_inference(self, encoded_state, action):
-        next_encoded_state, reward = self.dynamics(encoded_state, action)
-        policy_logits, value = self.prediction(next_encoded_state)
-        return value, reward, policy_logits, next_encoded_state
+    def recurrent_inference(self, state, action):
+        nxt_state, reward = self.dynamics(state, action)
+        policy_logits, value = self.prediction(nxt_state)
+        return value, reward, policy_logits, nxt_state
 
 def support_to_scalar(logits, support_size):
     """
