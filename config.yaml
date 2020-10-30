@@ -7,13 +7,13 @@ env:
   pixel_size: 10
   bg_color:
     id: 0
-    rgb: (0,0,0)
+    rgb: (0, 0, 0)
   wall_color:
     id: 1
-    rgb: (255,0,0)
+    rgb: (255, 0, 0)
   sh_color:
     id: 2
-    rgb: (247,77,255)
+    rgb: (247, 77, 255)
   sb_color:
     id: 3
     rgb: (255, 228, 33)
@@ -28,3 +28,14 @@ buffer:
   batch_size: 1024
   unroll_steps: 5
   td_steps: 10
+model:
+  depth: 256
+  reduced_depth: 128
+  stacked_frame: 32
+  block: 16
+  support_size: 601
+  use_downsampling: True
+  action_space: 4
+  value_layers: []
+  policy_layers: []
+  reward_layers: []

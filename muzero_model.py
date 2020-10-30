@@ -61,15 +61,15 @@ class DownSample(tfkl.Layer):
         return out
 
 class RepresentationNetwork(Model):
-    def __init__(self, stacked_obs, blocks, depth, ds):
+    def __init__(self, settings):
         super().__init__()
-        self.use_ds = ds
+        self.use_ds = settings.use_downsampling
         if self.use_ds:
-            self.ds = DownSample(depth)
+            self.ds = DownSample(settings.depth)
         else:
-            self.conv = tfkl.Conv2D(depth, (3,3), strides=(2,2), padding='same', use_bias=False)
+            self.conv = tfkl.Conv2D(settings.depth, (3,3), strides=(2,2), padding='same', use_bias=False)
             self.bn = tfkl.BatchNormalization()
-        self.resblocks = [ResidualBlock(depth) for _ in range(blocks)]
+        self.resblocks = [ResidualBlock(settings.depth) for _ in range(settings.blocks)]
 
     def __call__(self, x):
         if self.use_ds:
@@ -84,14 +84,14 @@ class RepresentationNetwork(Model):
         return out
 
 class DynamicsNetwork(Model):
-    def __init__(self, blocks, depth, reduced_depth, fc_reward_layers, full_sup_size):
+    def __init__(self, settings):
         super().__init__()
-        self.conv = tfkl.Conv2D(depth, (3,3), strides=(2,2), padding='same', use_bias=False)
+        self.conv = tfkl.Conv2D(settings.depth, (3,3), strides=(2,2), padding='same', use_bias=False)
         self.bn = tfkl.BatchNormalization()
-        self.resblocks = [ResidualBlock(depth) for _ in range(blocks)]
-        self.conv1x1 = tfkl.Conv2D(reduced_depth, (1,1))
+        self.resblocks = [ResidualBlock(settings.depth) for _ in range(settings.blocks)]
+        self.conv1x1 = tfkl.Conv2D(settings.reduced_depth, (1,1))
         self.flat = tfkl.Flatten()
-        self.fc = FullyConnectedNetwork(fc_reward_layers, full_sup_size, activation=None)
+        self.fc = FullyConnectedNetwork(settings.reward_layers, settings.support_size, activation=None)
 
     def __call__(self, x):
         out = self.conv(x)
@@ -106,14 +106,14 @@ class DynamicsNetwork(Model):
         return state, reward
 
 class PredictionNetwork(Model):
-    def __init__(self, act_space, blocks, depth, reduced_depth, fc_value_layers, fc_policy_layers, full_sup_size):
+    def __init__(self, settings):
         super().__init__()
-        self.resblocks =  [ResidualBlock(depth) for _ in range(blocks)]
+        self.resblocks =  [ResidualBlock(settings.depth) for _ in range(settings.blocks)]
 
-        self.conv1x1 = tfkl.Conv2D(reduced_depth, kernel_size=(1,1))
+        self.conv1x1 = tfkl.Conv2D(settings.reduced_depth, kernel_size=(1,1))
         self.flat = tfkl.Flatten()
-        self.fc_value = FullyConnectedNetwork(fc_value_layers, full_sup_size, activation=None)
-        self.fc_policy = FullyConnectedNetwork(fc_policy_layers, act_space, activation=None)
+        self.fc_value = FullyConnectedNetwork(settings.value_layers, setting.support_size, activation=None)
+        self.fc_policy = FullyConnectedNetwork(settings.policy_layers, settings.action_space, activation=None)
 
     def __call__(self, x):
         out = x
@@ -126,39 +126,13 @@ class PredictionNetwork(Model):
         return policy, value
 
 class MuZero(Model):
-    def __init__(self, ):
+    def __init__(self, settings):
         super().__init__()
-        self.action_space_size = act_dim
-        self.full_support_size = 2 * support_size + 1
-        #if ds:
-        #    block_output_size = reduced_depth * (obs_shape[1] // 16) * (obs_shape[2] // 16)
-        #else: 
-        #    block_output_size = reduced_depth * obs_shape[1] * obs_shape[2]
+        self.sts = settings
 
-        self.representation_network = RepresentationNetwork(obs_shape,
-            stacked_observations,
-            num_blocks,
-            num_channels,
-            ds,
-        )
-
-        self.dynamics_network = DynamicsNetwork(
-            num_blocks,
-            num_channels,
-            reduced_channels,
-            fc_reward_layers,
-            self.full_support_size,
-        )
-
-        self.prediction_network = PredictionNetwork(
-            action_space_size,
-            num_blocks,
-            depth,
-            reduced_depth,
-            fc_value_layers,
-            fc_policy_layers,
-            self.full_support_size,
-        )
+        self.representation_network = RepresentationNetwork(self.settings)
+        self.dynamics_network = DynamicsNetwork(self.settings)
+        self.prediction_network = PredictionNetwork(self.settings)
 
     def prediction(self, encoded_state):
         policy, value = self.prediction_network(encoded_state)

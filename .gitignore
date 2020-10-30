@@ -1,4 +1,7 @@
 old
 model
 .idea
+**.swp
+**.pyc
+logs
 __pycache__
