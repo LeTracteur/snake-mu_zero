@@ -1,4 +1,5 @@
 import numpy as np
+from muzero_models import support_to_scalar, scalar_to_support
 
 class MCTS:
 
@@ -14,7 +15,7 @@ class MCTS:
         """
         root = Node(0)
         #observation = (torch.tensor(observation).float().unsqueeze(0).to(next(model.parameters()).device))
-        root_pred_value, reward, policy_logits, state = model.initial_inference(observation)
+        root_pred_value, reward, policy_logits, hidden_state = model.initial_inference(observation)
         root_pred_value = models.support_to_scalar(root_pred_value, self.setttings.support_size)
         reward = models.support_to_scalar(reward, self.settings.support_size)
         root.expand(legal_actions, to_play, reward, policy_logits, state)
