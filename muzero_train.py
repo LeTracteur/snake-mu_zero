@@ -3,6 +3,7 @@ import argparse
 import sys
 from environment_new import *
 from game import Game
+from replay_buffer import ReplayBuffer
 
 
 def main(stg):
@@ -10,8 +11,9 @@ def main(stg):
     env = SnakeEnv(settings.env)
     nb_episodes = settings.nb_episodes
     steps = settings.steps
-
-    for ep in nb_episodes:
+    replay_buffer = ReplayBuffer(settings.buffer)
+    u = None
+    for ep in range(nb_episodes):
         game = Game(settings.game, env.action_space)
         observation = env.reset()
         game.observation_history.append(observation)
@@ -32,9 +34,13 @@ def main(stg):
             game.rewards_history.append(reward)
 
             if terminal:
+                replay_buffer.save_game(game)
+                return replay_buffer
                 break
 
             observation = new_obs
+
+
 
 if __name__ == '__main__':
     setting_file = sys.argv[1]

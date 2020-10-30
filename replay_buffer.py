@@ -14,7 +14,7 @@ class ReplayBuffer:
 
         self.buffer = []
 
-    def save_episode(self, game):
+    def save_game(self, game):
         if len(self.buffer) > self.buffer_size:
             self.buffer.pop(0)
         self.buffer.append(game)

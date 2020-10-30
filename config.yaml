@@ -1,4 +1,4 @@
-nb_ep: 100000
+nb_episodes: 100000
 steps: 2000
 env:
   action_space: 4
@@ -6,7 +6,7 @@ env:
   grid_length: 10
   wall_pixels: 1
   snake_pixels: 1
-  pixel_size: 10
+  pixel_size: 8
   bg_color:
     id: 0
     rgb: (0, 0, 0)
