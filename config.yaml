@@ -28,18 +28,18 @@ buffer:
   unroll_steps: 5
   td_steps: 10
   reanalize: 1
-  stacked_frame: 32
-  support_size: 601
+  stacked_frame: 16
+  support_size: 300
 model:
-  depth: 256
-  reduced_depth: 128
-  stacked_frame: 32
-  block: 16
-  support_size: 601
-  use_downsampling: True
+  depth: 128
+  reduced_depth: 32
+  stacked_frame: 16
+  block: 8
+  support_size: 300
+  use_downsampling: 1
   action_space: 4
-  value_layers: []
-  policy_layers: []
-  reward_layers: []
+  value_layers: [128,32]
+  policy_layers: [128,32]
+  reward_layers: [128,32]
 game:
   discount: 0.99
