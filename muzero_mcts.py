@@ -2,8 +2,8 @@ import numpy as np
 
 class MCTS:
 
-    def __init__(self, config):
-        self.config = config
+    def __init__(self, settings):
+        self.sts = settings
 
     def run(self, model, observation, legal_actions, to_play, add_exploration_noise):
         """
@@ -13,15 +13,15 @@ class MCTS:
         learned by the network.
         """
         root = Node(0)
-        observation = (torch.tensor(observation).float().unsqueeze(0).to(next(model.parameters()).device))
-        (root_predicted_value, reward, policy_logits, hidden_state,) = model.initial_inference(observation)
-        root_predicted_value = models.support_to_scalar(root_predicted_value, self.config.support_size).item()
-        reward = models.support_to_scalar(reward, self.config.support_size).item()
-        root.expand(legal_actions, to_play, reward, policy_logits, hidden_state,)
+        #observation = (torch.tensor(observation).float().unsqueeze(0).to(next(model.parameters()).device))
+        root_pred_value, reward, policy_logits, state = model.initial_inference(observation)
+        root_pred_value = models.support_to_scalar(root_pred_value, self.setttings.support_size)
+        reward = models.support_to_scalar(reward, self.settings.support_size)
+        root.expand(legal_actions, to_play, reward, policy_logits, state)
         if add_exploration_noise:
             root.add_exploration_noise(
-                dirichlet_alpha=self.config.root_dirichlet_alpha,
-                exploration_fraction=self.config.root_exploration_fraction,
+                dirichlet_alpha=self.sts.root_dirichlet_alpha,
+                exploration_fraction=self.sts.root_exploration_fraction,
             )
 
         min_max_stats = MinMaxStats()
@@ -47,10 +47,10 @@ class MCTS:
             # Inside the search tree we use the dynamics function to obtain the next hidden
             # state given an action and the previous hidden state
             parent = search_path[-2]
-            value, reward, policy_logits, hidden_state = model.recurrent_inference(parent.hidden_state, torch.tensor([[action]]).to(parent.hidden_state.device),)
+            value, reward, policy_logits, hidden_state = model.recurrent_inference(parent.hidden_state, torch.tensor([[action]]))
             value = models.support_to_scalar(value, self.config.support_size).item()
             reward = models.support_to_scalar(reward, self.config.support_size).item()
-            node.expand(self.config.action_space, virtual_to_play, reward, policy_logits, hidden_state,)
+            node.expand(self.config.action_space, virtual_to_play, reward, policy_logits, hidden_state)
 
             self.backpropagate(search_path, value, virtual_to_play, min_max_stats)
 
@@ -62,22 +62,12 @@ class MCTS:
         """
         Select the child with the highest UCB score.
         """
-        scores = [self.ucb_score(node, child, min_max_stats) for action, child in node.children.items()]
-        exp = numpy.exp(scores - numpy.max(scores))
-        prob = exp / exp.sum()
-        action = numpy.random.choice([action for action, child in node.children.items()], p = prob)
-        
-		# max_ucb = max(
-		#    self.ucb_score(node, child, min_max_stats)
-		#    for action, child in node.children.items()
-		# )
-		# action = numpy.random.choice(
-		#    [
-		#        action
-		#        for action, child in node.children.items()
-		#        if self.ucb_score(node, child, min_max_stats) == max_ucb
-		#    ]
-		# )
+        #scores = [self.ucb_score(node, child, min_max_stats) for action, child in node.children.items()]
+        #exp = numpy.exp(scores - numpy.max(scores))
+        #prob = exp / exp.sum()
+        #action = numpy.random.choice([action for action, child in node.children.items()], p = prob)
+        max_ucb = max([self.ucb_score(node, child, min_max_stats) for action, child in node.children.items()])
+        action = numpy.random.choice([action for action, child in node.children.items() if self.ucb_score(node, child, min_max_stats) == max_ucb])
         return action, node.children[action]
 
     def ucb_score(self, parent, child, min_max_stats):
@@ -157,3 +147,20 @@ class Node:
         for a, n in zip(actions, noise):
             self.children[a].prior = self.children[a].prior * (1 - frac) + n * frac
 
+class MinMaxStats:
+    """
+    A class that holds the min-max values of the tree.
+    """
+    def __init__(self):
+        self.maximum = -float("inf")
+        self.minimum = float("inf")
+
+    def update(self, value):
+        self.maximum = max(self.maximum, value)
+        self.minimum = min(self.minimum, value)
+
+    def normalize(self, value):
+        if self.maximum > self.minimum:
+            # We normalize only when we have set the maximum and minimum values
+            return (value - self.minimum) / (self.maximum - self.minimum)
+        return value
