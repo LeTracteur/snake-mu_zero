@@ -40,7 +40,7 @@ class ReplayBuffer:
             batch["actions"].append(t_actions)
             batch["mask_policy"].append(mask_policy)
         for key in batch.keys():
-            batch[key] = np.array(batch[key])
+            batch[key] = np.array(batch[key], dtype=np.float32)
         return batch
 
     def get_game(self):
