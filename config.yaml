@@ -1,4 +1,4 @@
-nb_episodes: 5
+nb_episodes: 50
 steps: 2000
 players: [0]
 env:
@@ -30,7 +30,7 @@ buffer:
   td_steps: 10
   reanalize: 1
   stacked_frame: 16
-  support_size: 300
+  support_size: 150
   action_space: 5
 model:
   depth: 128
@@ -43,10 +43,11 @@ model:
   value_layers: [128,32]
   policy_layers: [128,32]
   reward_layers: [128,32]
-  learning_rate: 0.001, 
-  adam_beta_1: 0.9, 
-  adam_beta_2: 0.999, 
+  learning_rate: 0.001
+  adam_beta_1: 0.9
+  adam_beta_2: 0.999
   adam_epsilon: 1e-07
+  value_loss_weight: 0.25
 game:
   discount: 0.997
 mcts:

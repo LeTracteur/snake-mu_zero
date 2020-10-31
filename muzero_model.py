@@ -1,6 +1,7 @@
 import tensorflow as tf
 import tensorflow.keras.layers as tfkl
 from tensorflow.keras import Model
+import numpy as np
 
 @tf.custom_gradient
 def scale_gradient(x, scale):
@@ -9,7 +10,11 @@ def scale_gradient(x, scale):
     return tf.identity(x), grad
 
 
-class FullyConnectedNetwork(tfkl.Layer):
+def scale_grad(tensor, scale):
+    return (1. - scale) * tf.stop_gradient(tensor) + scale * tensor
+
+
+class FullyConnectedNetwork(Model):
     def __init__(self, layer_sizes, output_size, activation=tf.nn.leaky_relu):
         super().__init__()
         self._act = activation
@@ -25,7 +30,7 @@ class FullyConnectedNetwork(tfkl.Layer):
             out = self.final(out)
         return out
 
-class ResidualBlock(tfkl.Layer):
+class ResidualBlock(Model):
     def __init__(self, filters, stride=1):
         super().__init__()
         self.conv1 = tfkl.Conv2D(filters, (3,3), strides=(stride,stride), padding='same', use_bias=False)
@@ -43,7 +48,7 @@ class ResidualBlock(tfkl.Layer):
         out = tf.nn.relu(out)
         return out
 
-class DownSample(tfkl.Layer):
+class DownSample(Model):
     def __init__(self, depth):
         super().__init__()
         self.conv1 = tfkl.Conv2D(depth // 2, (3,3), strides=(2,2), padding='same', use_bias=False)
@@ -142,10 +147,15 @@ class MuZero(Model):
         self.representation_network = RepresentationNetwork(self.sts)
         self.dynamics_network = DynamicsNetwork(self.sts)
         self.prediction_network = PredictionNetwork(self.sts)
-        self.optimizer = tf.keras.optimizers.Adam(self.sts.learning_rate=0.001,
-                                                    self.sts.adam_beta_1=0.9,
-                                                    self.sts.adam_beta_2=0.999,
-                                                    self.sts.adam_epsilon=1e-07)
+
+        self.optimizer = tf.keras.optimizers.Adam(learning_rate=self.sts.learning_rate,
+                                                  beta_1=self.sts.adam_beta_1,
+                                                  beta_2=self.sts.adam_beta_2,
+                                                  epsilon=float(self.sts.adam_epsilon))
+        # self.optimizer = tf.keras.optimizers.Adam()
+        self.value_loss = tf.keras.losses.MeanSquaredError(reduction=tf.keras.losses.Reduction.NONE)
+        self.reward_loss = tf.keras.losses.MeanSquaredError(reduction=tf.keras.losses.Reduction.NONE)
+        self.policy_loss = tf.keras.losses.MeanSquaredError(reduction=tf.keras.losses.Reduction.NONE)
 
     def train(self, data):
         # obs, actions, target_value, target_reward, target_policy = data
@@ -154,9 +164,10 @@ class MuZero(Model):
             value, reward, policy_logits, hidden_state = self.initial_inference(data['observation_batch'])
             predictions = [[value, reward, policy_logits]]
             for i in range(1, data['actions'].shape[-1]):
-                value, reward, policy_logits, hidden_state = self.recurrent_inference(hidden_state, data['actions'][:, i])
+                print(hidden_state.shape)
+                value, reward, policy_logits, hidden_state = self.recurrent_inference(hidden_state, np.expand_dims(data['actions'][:, i],0))
                 # Scale the gradient at the start of the dynamics function (See paper appendix Training)
-                hidden_state = scale_gradient(hidden_state, 0.5)#egister_hook(lambda grad: grad * 0.5)
+                hidden_state = scale_grad(hidden_state, 0.5)#egister_hook(lambda grad: grad * 0.5)
                 predictions.append([value, reward, policy_logits])
 
             # Compute losses
@@ -165,19 +176,19 @@ class MuZero(Model):
             reward_loss = 0.
 
             for i, prediction in enumerate(predictions[1:], 1):
-                current_value_loss, current_reward_loss, current_policy_loss = self.loss_function(prediction, data['target_values'][:, i], data['target_rewards'][:, i], data['target_policies'][:, i])
+                current_value_loss, current_reward_loss, current_policy_loss = self.loss_function(prediction[0], prediction[1], prediction[2], data['target_values'][:, i], data['target_rewards'][:, i], data['target_policies'][:, i])
                 # Scale gradient by the number of unroll steps (See paper appendix Training)
-                value_loss += scale_gradient(current_value_loss, 1./i)#register_hook(lambda grad: grad / gradient_scale_batch[:, i])
-                reward_loss += scale_gradient(current_reward_loss, 1./i)#.register_hook(lambda grad: grad / gradient_scale_batch[:, i])
-                policy_loss += scale_gradient(current_policy_loss, 1./i)#.register_hook(lambda grad: grad / gradient_scale_batch[:, i])
+                value_loss += scale_grad(current_value_loss, 1./i)#register_hook(lambda grad: grad / gradient_scale_batch[:, i])
+                reward_loss += scale_grad(current_reward_loss, 1./i)#.register_hook(lambda grad: grad / gradient_scale_batch[:, i])
+                policy_loss += scale_grad(current_policy_loss, 1./i)#.register_hook(lambda grad: grad / gradient_scale_batch[:, i])
 
                 loss = value_loss * self.sts.value_loss_weight + reward_loss + policy_loss
 
             loss = tf.reduce_mean(loss)
 
         # Optimize
-        grads = model_tape.gradient(loss, self.trainable_variables)
-        self.optimizer.apply_gradients(zip(grads, model.trainable_variables))
+        grads = model_tape.gradient(loss, self.get_trainable_variables())
+        self.optimizer.apply_gradients(zip(grads, self.get_trainable_variables()))
         self.training_step += 1
 
     def prediction(self, encoded_state):
@@ -218,6 +229,19 @@ class MuZero(Model):
         policy_logits, value = self.prediction(nxt_state)
         return value, reward, policy_logits, nxt_state
 
+    def loss_function(self, pred_value, pred_reward, pred_policy_logits, true_value, true_reward, true_policy):
+        value_loss = self.value_loss(scalar_to_support(true_value, self.sts.support_size), pred_value)
+        reward_loss = self.reward_loss(scalar_to_support(true_reward, self.sts.support_size), pred_reward)
+        policy_loss = self.policy_loss(true_policy, pred_policy_logits)
+        return value_loss, reward_loss, policy_loss
+
+    # def cb_get_trainable_variables(self):
+    def get_trainable_variables(self):
+        networks = (self.representation_network, self.dynamics_network, self.prediction_network)
+        return [variables for variables_list in map(lambda n:n.trainable_variables, networks) for variables in variables_list]
+        # return get_trainable_variables
+
+
 def support_to_scalar(logits, support_size):
     """
     Transform a categorical representation to a scalar
@@ -239,9 +263,8 @@ def scalar_to_support(x, support_size):
     x = tf.sign(x) * (tf.sqrt(tf.abs(x) + 1) - 1) + 0.001 * x
     x = tf.clip_by_value(x, -support_size, support_size)
     floor = tf.floor(x)
-    floor2 = tf.floor(x)
     prob = x - floor
-    logits1 = tf.transpose(tf.one_hot(floor+support_size, 2*support_size+1))*(1-prob)
-    logits2 = tf.transpose(tf.one_hot(floor+1+support_size, 2*support_size+1))*(prob)
+    logits1 = tf.transpose(tf.one_hot(tf.cast(floor, dtype=tf.int32)+support_size, 2*support_size+1))*(1-prob)
+    logits2 = tf.transpose(tf.one_hot(tf.cast(floor, dtype=tf.int32)+1+support_size, 2*support_size+1))*(prob)
     logits = tf.transpose(logits1+logits2)
     return logits
