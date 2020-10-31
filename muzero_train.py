@@ -33,7 +33,7 @@ def main(stg):
 
         for step in range(steps):
             # visual rendering
-            env.render()
+            # env.render()
 
             game.observation_history.append(observation)
             stacked_observations = game.get_stacked_observations(-1, settings.model.stacked_frame)

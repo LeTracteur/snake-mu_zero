@@ -117,11 +117,12 @@ def video_summary(name, video, step=None, fps=5):
 
 def grid_to_color(grid, color_settings):
     img = np.zeros((grid.shape[0], grid.shape[1], 3))
-    img[grid == color_settings.f_color.id] = np.array(color_settings.f_color.id)
-    img[grid == color_settings.sh_color.id] = np.array(color_settings.sh_color.rgb)
-    img[grid == color_settings.sb_color.id] = np.array(color_settings.sb_color.rgb)
-    img[grid == color_settings.bg_color.id] = np.array(color_settings.bg_color.rgb)
-    img[grid == color_settings.wall_color.id] = np.array(color_settings.wall_color.rgb)
+    _grid = np.squeeze(grid)
+    img[_grid == color_settings.f_color.id] = np.array(eval(color_settings.f_color.rgb))
+    img[_grid == color_settings.sh_color.id] = np.array(eval(color_settings.sh_color.rgb))
+    img[_grid == color_settings.sb_color.id] = np.array(eval(color_settings.sb_color.rgb))
+    img[_grid == color_settings.bg_color.id] = np.array(eval(color_settings.bg_color.rgb))
+    img[_grid == color_settings.wall_color.id] = np.array(eval(color_settings.wall_color.rgb))
     return img
 
 def init_ep():

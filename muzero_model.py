@@ -164,7 +164,7 @@ class MuZero(Model):
             value, reward, policy_logits, hidden_state = self.initial_inference(data['observation_batch'])
             predictions = [[value, reward, policy_logits]]
             for i in range(1, data['actions'].shape[-1]):
-                value, reward, policy_logits, hidden_state = self.recurrent_inference(hidden_state, np.expand_dims(data['actions'][:, i],0))
+                value, reward, policy_logits, hidden_state = self.recurrent_inference(hidden_state, data['actions'][:, i])
                 # Scale the gradient at the start of the dynamics function (See paper appendix Training)
                 hidden_state = scale_grad(hidden_state, 0.5)#egister_hook(lambda grad: grad * 0.5)
                 predictions.append([value, reward, policy_logits])
@@ -206,8 +206,10 @@ class MuZero(Model):
 
     def dynamics(self, state, action):
         # Stack encoded_state with action as plane
-        action_one_hot = tf.ones((state.shape[0], state.shape[1], state.shape[2], 1), dtype=tf.dtypes.float32)
-        action_one_hot = action * action_one_hot / self.sts.action_space
+        # print(action)
+        action_one_hot = tf.ones((1, state.shape[1], state.shape[2], state.shape[0]), dtype=tf.dtypes.float32)
+        action_one_hot = action_one_hot * action / self.sts.action_space
+        action_one_hot = tf.transpose(action_one_hot, [3, 1, 2, 0])
         x = tf.concat((state, action_one_hot), -1)
         nxt_state, reward = self.dynamics_network(x)
 
