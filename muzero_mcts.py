@@ -1,5 +1,5 @@
 import numpy as np
-from muzero_models import support_to_scalar, scalar_to_support
+from muzero_model import support_to_scalar, scalar_to_support
 
 class MCTS:
     def __init__(self, settings):
@@ -15,9 +15,9 @@ class MCTS:
         root = Node(0)
         #observation = (torch.tensor(observation).float().unsqueeze(0).to(next(model.parameters()).device))
         root_pred_value, reward, policy_logits, hidden_state = model.initial_inference(observation)
-        root_pred_value = models.support_to_scalar(root_pred_value, self.setttings.support_size)
-        reward = models.support_to_scalar(reward, self.settings.support_size)
-        root.expand(legal_actions, to_play, reward, policy_logits, state)
+        root_pred_value = model.support_to_scalar(root_pred_value, self.setttings.support_size)
+        reward = model.support_to_scalar(reward, self.settings.support_size)
+        root.expand(legal_actions, to_play, reward, policy_logits, hidden_state)
         if add_exploration_noise:
             root.add_exploration_noise(
                 dirichlet_alpha=self.sts.root_dirichlet_alpha,
@@ -48,8 +48,8 @@ class MCTS:
             # state given an action and the previous hidden state
             parent = search_path[-2]
             value, reward, policy_logits, hidden_state = model.recurrent_inference(parent.hidden_state, action)
-            value = models.support_to_scalar(value, self.sts.support_size).item()
-            reward = models.support_to_scalar(reward, self.sts.support_size).item()
+            value = model.support_to_scalar(value, self.sts.support_size)
+            reward = model.support_to_scalar(reward, self.sts.support_size)
             node.expand(self.sts.action_space, virtual_to_play, reward, policy_logits, hidden_state)
 
             self.backpropagate(search_path, value, virtual_to_play, min_max_stats)
@@ -63,11 +63,11 @@ class MCTS:
         Select the child with the highest UCB score.
         """
         #scores = [self.ucb_score(node, child, min_max_stats) for action, child in node.children.items()]
-        #exp = numpy.exp(scores - numpy.max(scores))
+        #exp = np.exp(scores - np.max(scores))
         #prob = exp / exp.sum()
-        #action = numpy.random.choice([action for action, child in node.children.items()], p = prob)
+        #action = np.random.choice([action for action, child in node.children.items()], p = prob)
         max_ucb = max([self.ucb_score(node, child, min_max_stats) for action, child in node.children.items()])
-        action = numpy.random.choice([action for action, child in node.children.items() if self.ucb_score(node, child, min_max_stats) == max_ucb])
+        action = np.random.choice([action for action, child in node.children.items() if self.ucb_score(node, child, min_max_stats) == max_ucb])
         return action, node.children[action]
 
     def ucb_score(self, parent, child, min_max_stats):
@@ -142,7 +142,7 @@ class Node:
         encourage the search to explore new actions.
         """
         actions = list(self.children.keys())
-        noise = numpy.random.dirichlet([dirichlet_alpha] * len(actions))
+        noise = np.random.dirichlet([dirichlet_alpha] * len(actions))
         frac = exploration_fraction
         for a, n in zip(actions, noise):
             self.children[a].prior = self.children[a].prior * (1 - frac) + n * frac

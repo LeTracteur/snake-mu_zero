@@ -5,7 +5,7 @@ from environment_new import *
 from game import Game
 from replay_buffer import ReplayBuffer
 import muzero_model
-
+from muzero_mcts import MCTS
 
 def main(stg):
     settings = utils.Obj(stg)
@@ -14,9 +14,8 @@ def main(stg):
     steps = settings.steps
     replay_buffer = ReplayBuffer(settings.buffer)
 
-    # agent = muzero_model.MuZero(settings)
-
-    final_st_obs = None
+    agent = muzero_model.MuZero(settings.model)
+    agent.build()
 
     for ep in range(nb_episodes):
         game = Game(settings.game, env.action_space)
@@ -27,15 +26,16 @@ def main(stg):
             env.render()
 
             game.observation_history.append(observation)
-
             stacked_observations = game.get_stacked_observations(-1, settings.model.stacked_frame)
 
-            # root, tree_depth = MCTS(settings).run(agent, stacked_observations, [0, 1, 2, 3, 4], 0, True)
+            root, tree_depth = MCTS(settings).run(agent, stacked_observations, [0, 1, 2, 3, 4], 0, True)
 
             # action = self.select_action(root, temperature if not temperature_threshold or len(game_history.action_history) < temperature_threshold else 0)
 
             # waiting for monte carlo to be working
             action = int(input("action: "))
+
+
 
             new_obs, reward, terminal = env.step(action)
 

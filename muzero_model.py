@@ -4,9 +4,9 @@ from tensorflow.keras import Model
 
 @tf.custom_gradient
 def scale_gradient(x, scale):
-  def grad(dy):
-    return scale * dy
-  return tf.identity(x), grad
+    def grad(dy):
+        return scale * dy
+    return tf.identity(x), grad
 
 
 class FullyConnectedNetwork(tfkl.Layer):
@@ -74,7 +74,7 @@ class RepresentationNetwork(Model):
         if self.use_ds:
             self.ds = DownSample(settings.depth)
         else:
-            self.conv = tfkl.Conv2D(settings.depth, (3,3), strides=(2,2), padding='same', use_bias=False)
+            self.conv = tfkl.Conv2D(settings.depth, (3,3), strides=(1,1), padding='same', use_bias=False)
             self.bn = tfkl.BatchNormalization()
         self.resblocks = [ResidualBlock(settings.depth) for _ in range(settings.blocks)]
 
@@ -93,7 +93,7 @@ class RepresentationNetwork(Model):
 class DynamicsNetwork(Model):
     def __init__(self, settings):
         super().__init__()
-        self.conv = tfkl.Conv2D(settings.depth, (3,3), strides=(2,2), padding='same', use_bias=False)
+        self.conv = tfkl.Conv2D(settings.depth, (3,3), strides=(1,1), padding='same', use_bias=False)
         self.bn = tfkl.BatchNormalization()
         self.resblocks = [ResidualBlock(settings.depth) for _ in range(settings.blocks)]
         self.conv1x1 = tfkl.Conv2D(settings.reduced_depth, (1,1))
@@ -117,9 +117,9 @@ class PredictionNetwork(Model):
         super().__init__()
         self.resblocks =  [ResidualBlock(settings.depth) for _ in range(settings.blocks)]
 
-        self.conv1x1 = tfkl.Conv2D(settings.reduced_depth, kernel_size=(1,1))
+        self.conv1x1 = tfkl.Conv2D(settings.reduced_depth, (1,1))
         self.flat = tfkl.Flatten()
-        self.fc_value = FullyConnectedNetwork(settings.value_layers, setting.support_size*2+1, activation=None)
+        self.fc_value = FullyConnectedNetwork(settings.value_layers, settings.support_size*2+1, activation=None)
         self.fc_policy = FullyConnectedNetwork(settings.policy_layers, settings.action_space, activation=None)
 
     def call(self, x):
@@ -138,9 +138,9 @@ class MuZero(Model):
         self.sts = settings
 
     def build(self):
-        self.representation_network = RepresentationNetwork(self.settings)
-        self.dynamics_network = DynamicsNetwork(self.settings)
-        self.prediction_network = PredictionNetwork(self.settings)
+        self.representation_network = RepresentationNetwork(self.sts)
+        self.dynamics_network = DynamicsNetwork(self.sts)
+        self.prediction_network = PredictionNetwork(self.sts)
     """
     def train(self, data):
         obs, actions, target_value, target_reward, target_policy = data
@@ -181,24 +181,24 @@ class MuZero(Model):
         return policy, value
 
     def representation(self, obs):
-        st = self.representation_network(obs)
+        state = self.representation_network(obs)
         # [0,1] scaling
         min_state = tf.reduce_min(state, axis=(-2,-1), keepdims=True)
-        max_state = tf.reuce_max(state, axis=(-2,-1), keepdims=True)
+        max_state = tf.reduce_max(state, axis=(-2,-1), keepdims=True)
         scale_state = (max_state - min_state) + 1e-5
         state_norm = (state - min_state) / scale_state
-        return st_norm
+        return state_norm
 
     def dynamics(self, state, action):
         # Stack encoded_state with action as plane
         action_one_hot = tf.ones((state.shape[0], state.shape[1], state.shape[2], 1), dtype=tf.dtypes.float32)
-        action_one_hot = action * action_one_hot / self.action_space_size
-        x = tf.cat((state, action_one_hot), dim=-1)
+        action_one_hot = action * action_one_hot / self.sts.action_space
+        x = tf.concat((state, action_one_hot), -1)
         nxt_state, reward = self.dynamics_network(x)
 
         # [0,1] scaling
-        min_nxt_st = tf.reduce_min(nxt_state, axis=(-2,-1), keepdims=True)
-        max_nxt_st = tf.reuce_max(nxt_state, axis=(-2,-1), keepdims=True)
+        min_nxt_state = tf.reduce_min(nxt_state, axis=(-2,-1), keepdims=True)
+        max_nxt_state = tf.reduce_max(nxt_state, axis=(-2,-1), keepdims=True)
         scale_nxt_state = max_nxt_state - min_nxt_state + 1e-5
         nxt_state_normalized = (nxt_state - min_nxt_state) / scale_nxt_state
         return nxt_state_normalized, reward
@@ -206,8 +206,8 @@ class MuZero(Model):
     def initial_inference(self, observation):
         encoded_state = self.representation(observation)
         policy_logits, value = self.prediction(encoded_state)
-        reward = tf.onehot(tf.ones(len(observation),dtype=tf.int32)*self.sts.support_size, self.sts.support_size*2+1)
-        return (value, reward, policy_logits, encoded_state)
+        reward = tf.one_hot(tf.ones(len(observation),dtype=tf.int32)*self.sts.support_size, self.sts.support_size*2+1)
+        return value, reward, policy_logits, encoded_state
 
     def recurrent_inference(self, state, action):
         nxt_state, reward = self.dynamics(state, action)

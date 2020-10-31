@@ -35,10 +35,10 @@ model:
   depth: 128
   reduced_depth: 32
   stacked_frame: 16
-  block: 8
-  support_size: 300
+  blocks: 8
+  support_size: 150
   use_downsampling: 1
-  action_space: 4
+  action_space: 5
   value_layers: [128,32]
   policy_layers: [128,32]
   reward_layers: [128,32]

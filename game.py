@@ -19,9 +19,8 @@ class Game:
 
     def get_stacked_observations(self, index, num_stacked_observations):
         index = index % len(self.observation_history)
-        stacked_obs = self.observation_history[index].copy()
+        stacked_obs = self.observation_history[index].copy().astype(np.float32)
         for past_obs_idx in reversed(range(index - num_stacked_observations, index)):
-            print(past_obs_idx)
             if 0 <= past_obs_idx:
                 previous_obs = np.concatenate((np.ones_like(self.observation_history[0]) * self.actions_history[past_obs_idx]/5, self.observation_history[past_obs_idx]), axis=-1)
             else:
