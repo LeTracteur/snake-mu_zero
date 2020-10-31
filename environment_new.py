@@ -60,7 +60,7 @@ class SnakeEnv:
 
         self.score = 0
 
-        return self.board_status
+        return np.expand_dims(self.board_status, -1)
 
     def get_state_map(self):
         self.board_status = np.copy(self.states_space)
@@ -77,7 +77,7 @@ class SnakeEnv:
                 for j in range(self.snake_size):
                     self.board_status[self.snake_head[1] + i][self.snake_head[0] + j] = self.settings.sh_color.id
 
-        return self.board_status
+        return np.expand_dims(self.board_status, -1)
 
     def step(self, action):
         terminal = False
