@@ -41,7 +41,7 @@ class ReplayBuffer:
 
     def get_game(self):
         g_id = np.random.choice(len(self.buffer))
-        return g_id, self.buffer[g_id]
+        return self.buffer[g_id]
 
     def get_pos_in_g(self, game):
         pos = np.random.choice(len(game.actions_history))

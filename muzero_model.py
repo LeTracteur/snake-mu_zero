@@ -219,7 +219,7 @@ def support_to_scalar(logits, support_size):
     Transform a categorical representation to a scalar
     """
     # Decode to a scalar
-    prob = tf.nn.softmax(logits, dim=1)
+    prob = tf.nn.softmax(logits, axis=1)
     support = tf.range(-support_size, support_size + 1, 1, dtype=tf.float32)
     x = tf.reduce_sum(tf.multiply(prob,support), axis=-1, keepdims=True)
 

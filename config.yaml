@@ -1,4 +1,4 @@
-nb_episodes: 100000
+nb_episodes: 20
 steps: 2000
 players: [0]
 env:
@@ -25,7 +25,7 @@ env:
     rgb: (2, 213, 27)
 buffer:
   buffer_size: 1e6
-  batch_size: 1024
+  batch_size: 32
   unroll_steps: 5
   td_steps: 10
   reanalize: 1
@@ -43,12 +43,16 @@ model:
   policy_layers: [128,32]
   reward_layers: [128,32]
 game:
-  discount: 0.99
+  discount: 0.997
 mcts:
   players: [0]
-  num_sim: 50
+  num_simulations: 50
+  support_size: 150
   max_moves: 2000
   root_dirichlet_alpha: 0.25
   root_exploration_fraction: 0.25
   pb_c_base: 19652
   pb_c_init: 1.25
+  action_space: 5
+  action_pos: [0,1,2,3,4]
+  discount: 0.997

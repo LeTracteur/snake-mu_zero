@@ -1,5 +1,8 @@
 import numpy as np
 from muzero_model import support_to_scalar, scalar_to_support
+import tensorflow as tf
+import math
+
 
 class MCTS:
     def __init__(self, settings):
@@ -14,9 +17,9 @@ class MCTS:
         """
         root = Node(0)
         #observation = (torch.tensor(observation).float().unsqueeze(0).to(next(model.parameters()).device))
-        root_pred_value, reward, policy_logits, hidden_state = model.initial_inference(observation)
-        root_pred_value = model.support_to_scalar(root_pred_value, self.setttings.support_size)
-        reward = model.support_to_scalar(reward, self.settings.support_size)
+        root_pred_value, reward, policy_logits, hidden_state = model.initial_inference(np.expand_dims(observation, 0))
+        root_pred_value = support_to_scalar(root_pred_value, self.sts.support_size)
+        reward = support_to_scalar(reward, self.sts.support_size)
         root.expand(legal_actions, to_play, reward, policy_logits, hidden_state)
         if add_exploration_noise:
             root.add_exploration_noise(
@@ -48,9 +51,9 @@ class MCTS:
             # state given an action and the previous hidden state
             parent = search_path[-2]
             value, reward, policy_logits, hidden_state = model.recurrent_inference(parent.hidden_state, action)
-            value = model.support_to_scalar(value, self.sts.support_size)
-            reward = model.support_to_scalar(reward, self.sts.support_size)
-            node.expand(self.sts.action_space, virtual_to_play, reward, policy_logits, hidden_state)
+            value = support_to_scalar(value, self.sts.support_size)
+            reward = support_to_scalar(reward, self.sts.support_size)
+            node.expand(self.sts.action_pos, virtual_to_play, reward, policy_logits, hidden_state)
 
             self.backpropagate(search_path, value, virtual_to_play, min_max_stats)
 
@@ -164,3 +167,35 @@ class MinMaxStats:
             # We normalize only when we have set the maximum and minimum values
             return (value - self.minimum) / (self.maximum - self.minimum)
         return value
+
+
+def select_action(node, temperature):
+    """
+    Select action according to the visit count distribution and the temperature.
+    The temperature is changed dynamically with the visit_softmax_temperature function
+    in the config.
+    """
+    visit_counts = np.array([child.visit_count for child in node.children.values()])
+    actions = [action for action in node.children.keys()]
+    if temperature == 0:
+        action = actions[np.argmax(visit_counts)]
+    elif temperature == float("inf"):
+        action = np.random.choice(actions)
+    else:
+        # See paper appendix Data Generation
+        visit_count_distribution = visit_counts ** (1 / temperature)
+        visit_count_distribution = visit_count_distribution / sum(visit_count_distribution)
+        action = np.random.choice(actions, p=visit_count_distribution)
+
+    return action
+
+def select_temperature(episode):
+    if episode < 10000:
+        temperature = float("inf")
+    elif episode < 20000:
+        temperature = 1.0
+    elif episode < 50000:
+        temperature = 0.5
+    else:
+        temperature = 0.25
+    return temperature
