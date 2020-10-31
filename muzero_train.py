@@ -71,7 +71,7 @@ def main(stg):
                 tf.summary.scalar('steps', step, step=ep)
                 tf.summary.scalar('reward', np.sum(game.rewards_history), step=ep)
                 tf.summary.scalar('score', env.score, step=ep)
-                env.draw_game(game, 'train_gif')
+                env.draw_game(game, 'train_gif', ep)
 
     return replay_buffer, agent
 

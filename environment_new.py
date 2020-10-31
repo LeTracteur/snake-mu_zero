@@ -144,8 +144,8 @@ class SnakeEnv:
 
         self.display_screen()
 
-    def draw_game(self, game, name):
-        utils.video_summary(name, np.array([utils.grid_to_color(frame, self.settings) for frame in game.observation_history]))
+    def draw_game(self, game, name, ep):
+        utils.video_summary(name, np.expand_dims(np.array([utils.grid_to_color(frame, self.settings) for frame in game.observation_history]),0), ep)
 
     def display_screen(self):
         self.screen.fill(eval(self.settings.wall_color.rgb))
