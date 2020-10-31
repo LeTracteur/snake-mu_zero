@@ -2,7 +2,6 @@ import numpy as np
 from muzero_models import support_to_scalar, scalar_to_support
 
 class MCTS:
-
     def __init__(self, settings):
         self.sts = settings
 
@@ -28,7 +27,7 @@ class MCTS:
         min_max_stats = MinMaxStats()
 
         max_tree_depth = 0
-        for _ in range(self.config.num_simulations):
+        for _ in range(self.sts.num_simulations):
             virtual_to_play = to_play
             node = root
             search_path = [node]
@@ -40,18 +39,18 @@ class MCTS:
                 search_path.append(node)
 
                 # Players play turn by turn
-                if virtual_to_play + 1 < len(self.config.players):
-                    virtual_to_play = self.config.players[virtual_to_play + 1]
+                if virtual_to_play + 1 < len(self.sts.players):
+                    virtual_to_play = self.sts.players[virtual_to_play + 1]
                 else:
-                    virtual_to_play = self.config.players[0]
+                    virtual_to_play = self.sts.players[0]
 
             # Inside the search tree we use the dynamics function to obtain the next hidden
             # state given an action and the previous hidden state
             parent = search_path[-2]
             value, reward, policy_logits, hidden_state = model.recurrent_inference(parent.hidden_state, action)
-            value = models.support_to_scalar(value, self.config.support_size).item()
-            reward = models.support_to_scalar(reward, self.config.support_size).item()
-            node.expand(self.config.action_space, virtual_to_play, reward, policy_logits, hidden_state)
+            value = models.support_to_scalar(value, self.sts.support_size).item()
+            reward = models.support_to_scalar(reward, self.sts.support_size).item()
+            node.expand(self.sts.action_space, virtual_to_play, reward, policy_logits, hidden_state)
 
             self.backpropagate(search_path, value, virtual_to_play, min_max_stats)
 
@@ -75,14 +74,14 @@ class MCTS:
         """
         The score for a node is based on its value, plus an exploration bonus based on the prior.
         """
-        pb_c = (math.log((parent.visit_count + self.config.pb_c_base + 1) / self.config.pb_c_base) + self.config.pb_c_init)
+        pb_c = (math.log((parent.visit_count + self.sts.pb_c_base + 1) / self.sts.pb_c_base) + self.sts.pb_c_init)
         pb_c *= math.sqrt(parent.visit_count) / (child.visit_count + 1)
 
         prior_score = pb_c * child.prior
 
         if child.visit_count > 0:
             # Mean value Q
-            value_score = min_max_stats.normalize(child.reward + self.config.discount * child.value())
+            value_score = min_max_stats.normalize(child.reward + self.sts.discount * child.value())
         else:
             value_score = 0
 
@@ -96,9 +95,9 @@ class MCTS:
         for node in reversed(search_path):
             node.value_sum += value if node.to_play == to_play else -value
             node.visit_count += 1
-            min_max_stats.update(node.reward + self.config.discount * node.value())
+            min_max_stats.update(node.reward + self.sts.discount * node.value())
 
-            value = node.reward + self.config.discount * value
+            value = node.reward + self.sts.discount * value
 
 class Node:
     def __init__(self, prior):
