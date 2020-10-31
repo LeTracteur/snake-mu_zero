@@ -78,7 +78,8 @@ class ReplayBuffer:
         if bootstrap_index < len(game.root_values):
             if self.allow_reanalize:
                 observation = game.get_stacked_observations(bootstrap_index, self.num_stacked_obs)
-                last_step_val = muzero_model.support_to_scalar(model.initial_inference(observation)[0], self.support_size).item()
+                observation = np.expand_dims(observation,0)
+                last_step_val = muzero_model.support_to_scalar(model.initial_inference(observation)[0], self.support_size).numpy().item()
                 value = last_step_val * game.discount ** self.td_steps
             else:
                 value = game.root_values[bootstrap_index] * game.discount ** self.td_steps

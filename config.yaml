@@ -1,4 +1,4 @@
-nb_episodes: 5
+nb_episodes: 50
 steps: 2000
 players: [0]
 env:
@@ -25,12 +25,12 @@ env:
     rgb: (2, 213, 27)
 buffer:
   buffer_size: 1e6
-  batch_size: 32
+  batch_size: 256
   unroll_steps: 5
   td_steps: 10
   reanalize: 1
   stacked_frame: 16
-  support_size: 300
+  support_size: 150
   action_space: 5
 model:
   depth: 128
