@@ -11,6 +11,7 @@ class ReplayBuffer:
         self.allow_reanalize = settings.reanalize
         self.num_stacked_obs = settings.stacked_frame
         self.support_size = settings.support_size
+        self.action_space = settings.action_space
 
         self.buffer = []
 
@@ -24,20 +25,23 @@ class ReplayBuffer:
                  "target_values": [],
                  "target_rewards": [],
                  "target_policies": [],
-                 "target_actions": []}
+                 "target_actions": [],
+                 "mask_policy": []}
 
         games = [self.get_game() for _ in range(self.batch_size)]
         game_pos = [(g, self.get_pos_in_g(g)) for g in games]
 
         for (g, i) in game_pos:
-            t_val, t_reward, t_policies, t_actions = self.make_target(g, i, model)
+            t_val, t_reward, t_policies, t_actions, mask_policy = self.make_target(g, i, model)
             batch["observation_batch"].append(g.get_stacked_observations(i, self.num_stacked_obs))
             batch["target_values"].append(t_val)
             batch["target_rewards"].append(t_reward)
             batch["target_policies"].append(t_policies)
             batch["target_actions"].append(t_actions)
+            batch["mask_policy"].append(mask_policy)
+        for key in batch.keys():
+            batch[key] = np.array(batch[key])
         return batch
-        # return [(g.make_image(i), g.history[i:i + num_unroll_steps], g.make_target(i, num_unroll_steps, td_steps, g.to_play())) for (g, i) in game_pos]
 
     def get_game(self):
         g_id = np.random.choice(len(self.buffer))
@@ -48,7 +52,7 @@ class ReplayBuffer:
         return pos
 
     def make_target(self, game, start_index, model):
-        target_values, target_rewards, target_policies, actions = [], [], [], []
+        target_values, target_rewards, target_policies, actions, mask_policy = [], [], [], [], []
         for idx in range(start_index, start_index + self.num_unroll_steps + 1):
 
             value = self.compute_value(game, idx, model)
@@ -58,14 +62,16 @@ class ReplayBuffer:
                 target_rewards.append(game.rewards_history[idx])
                 target_policies.append(game.child_visits[idx])
                 actions.append(game.actions_history[idx])
+                mask_policy.append(True)
             else:
                 # States past the end of games are treated as absorbing states
                 target_values.append(0)
                 target_rewards.append(0)
-                target_policies.append([])
+                target_policies.append([0.0 for _ in range(self.action_space)])
                 actions.append(np.random.choice(game.actions_history))
+                mask_policy.append(False)
 
-        return target_values, target_rewards, target_policies, actions
+        return target_values, target_rewards, target_policies, actions, mask_policy
 
     def compute_value(self, game, idx, model):
         bootstrap_index = idx + self.td_steps

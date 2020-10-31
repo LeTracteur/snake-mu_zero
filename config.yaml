@@ -1,4 +1,4 @@
-nb_episodes: 20
+nb_episodes: 5
 steps: 2000
 players: [0]
 env:
@@ -31,6 +31,7 @@ buffer:
   reanalize: 1
   stacked_frame: 16
   support_size: 300
+  action_space: 5
 model:
   depth: 128
   reduced_depth: 32
