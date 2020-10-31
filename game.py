@@ -21,12 +21,12 @@ class Game:
         index = index % len(self.observation_history)
         stacked_obs = self.observation_history[index].copy()
         for past_obs_idx in reversed(range(index - num_stacked_observations, index)):
+            print(past_obs_idx)
             if 0 <= past_obs_idx:
-                previous_obs = np.concatenate((self.observation_history[past_obs_idx], [np.ones_like(stacked_obs[0]) * self.actions_history[past_obs_idx + 1]]))
+                previous_obs = np.concatenate((np.ones_like(self.observation_history[0]) * self.actions_history[past_obs_idx]/5, self.observation_history[past_obs_idx]), axis=-1)
             else:
                 # TODO: Duplicate 'index' frame
-                previous_obs = np.concatenate((np.zeros_like(self.observation_history[index]), [np.zeros_like(stacked_obs[0])]))
+                previous_obs = np.concatenate((self.observation_history[0], np.zeros_like(self.observation_history[index])), axis=-1)
+            stacked_obs = np.concatenate((stacked_obs, previous_obs), axis=-1)
 
-            stacked_obs = np.concatenate((stacked_obs, previous_obs))
-
-        return stacked_obs
+        return stacked_obs[:,:,:num_stacked_observations*2]

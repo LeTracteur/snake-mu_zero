@@ -18,6 +18,7 @@ class SnakeEnv:
         self.states_space = np.zeros((self.width, self.length), dtype=np.uint8)
 
         self.score = 0
+        self.previous_action = False
 
         self.firstcall = True
         self.env_clock = None
@@ -59,7 +60,7 @@ class SnakeEnv:
 
         self.score = 0
 
-        return self.board_status
+        return np.expand_dims(self.board_status, -1)
 
     def get_state_map(self):
         self.board_status = np.copy(self.states_space)
@@ -76,26 +77,32 @@ class SnakeEnv:
                 for j in range(self.snake_size):
                     self.board_status[self.snake_head[1] + i][self.snake_head[0] + j] = self.settings.sh_color.id
 
-        return self.board_status
+        return np.expand_dims(self.board_status, -1)
 
     def step(self, action):
         terminal = False
         add_block = False
-        if action == 3:
-            x_change = -self.snake_size
-            y_change = 0
-        elif action == 1:
-            x_change = self.snake_size
-            y_change = 0
-        elif action == 0:
-            y_change = -self.snake_size
-            x_change = 0
+        if action !=0:
+            self.previous_action = True
+        if action == 4:
+            self.x_change = -self.snake_size
+            self.y_change = 0
         elif action == 2:
-            y_change = self.snake_size
-            x_change = 0
+            self.x_change = self.snake_size
+            self.y_change = 0
+        elif action == 1:
+            self.y_change = -self.snake_size
+            self.x_change = 0
+        elif action == 3:
+            self.y_change = self.snake_size
+            self.x_change = 0
+        # elif action == 0:
+        #     if not self.previous_action:
+        #         self.x_change, self.y_change = 0, 0
 
-        self.head_x += x_change
-        self.head_y += y_change
+        if self.previous_action:
+            self.head_x += self.x_change
+            self.head_y += self.y_change
         self.snake_head = [self.head_x, self.head_y]
         self.snake_list.append(self.snake_head)
 
@@ -103,7 +110,7 @@ class SnakeEnv:
             terminal = True
             reward = -1.0
 
-        for x in self.snake_list[:-1]:
+        for x in self.snake_list[:-2]:
             if x == self.snake_head:
                 terminal = True
                 reward = -1.0
@@ -117,8 +124,10 @@ class SnakeEnv:
             else:
                 reward = 0
 
-        if not add_block:
+        if not add_block and self.previous_action:
             del self.snake_list[0]
+        if not self.previous_action:
+            del self.snake_list[-1]
 
         new_state = self.get_state_map()
 
