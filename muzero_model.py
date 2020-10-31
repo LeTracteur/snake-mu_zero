@@ -141,40 +141,40 @@ class MuZero(Model):
         self.representation_network = RepresentationNetwork(self.sts)
         self.dynamics_network = DynamicsNetwork(self.sts)
         self.prediction_network = PredictionNetwork(self.sts)
-    """
+
     def train(self, data):
-        obs, actions, target_value, target_reward, target_policy = data
+        # obs, actions, target_value, target_reward, target_policy = data
+
         with tf.GradientTape() as model_tape:
-        value, reward, policy_logits, hidden_state = self.initial_inference(obs)
-        predictions = [[value, reward, policy_logits]]
-        for i in range(1, actions.shape[-1]):
-            value, reward, policy_logits, hidden_state = self.recurrent_inference(hidden_state, actions[:, i])
-            # Scale the gradient at the start of the dynamics function (See paper appendix Training)
-            hidden_state = scale_gradient(hidden_state, 0.5)#egister_hook(lambda grad: grad * 0.5)
-            predictions.append([value, reward, policy_logits])
+            value, reward, policy_logits, hidden_state = self.initial_inference(data['observation_batch'])
+            predictions = [[value, reward, policy_logits]]
+            for i in range(1, data['actions'].shape[-1]):
+                value, reward, policy_logits, hidden_state = self.recurrent_inference(hidden_state, data['actions'][:, i])
+                # Scale the gradient at the start of the dynamics function (See paper appendix Training)
+                hidden_state = scale_gradient(hidden_state, 0.5)#egister_hook(lambda grad: grad * 0.5)
+                predictions.append([value, reward, policy_logits])
 
-        # Compute losses
-        value, reward, policy_logits = predictions[0]
-        value_loss, _, policy_loss = self.loss_function(value, reward, policy_logits, target_value[:, 0], target_reward[:, 0], target_policy[:, 0])
-        reward_loss = 0.
+            # Compute losses
+            value, reward, policy_logits = predictions[0]
+            value_loss, _, policy_loss = self.loss_function(value, reward, policy_logits, data['target_values'][:, 0], data['target_rewards'][:, 0], data['target_policies'][:, 0])
+            reward_loss = 0.
 
-	for i, prediction in enumerate(predictions[1:], 1):
-            current_value_loss, current_reward_loss, current_policy_loss = self.loss_function(prediction, target_value[:, i], target_reward[:, i], target_policy[:, i])
-            # Scale gradient by the number of unroll steps (See paper appendix Training)
-            value_loss += scale_gradient(current_value_loss, 1./i)#register_hook(lambda grad: grad / gradient_scale_batch[:, i])
-            reward_loss += scale_gradient(current_reward_loss, 1./i)#.register_hook(lambda grad: grad / gradient_scale_batch[:, i])
-            policy_loss += scale_gradient(current_policy_loss, 1./i)#.register_hook(lambda grad: grad / gradient_scale_batch[:, i])
+            for i, prediction in enumerate(predictions[1:], 1):
+                current_value_loss, current_reward_loss, current_policy_loss = self.loss_function(prediction, data['target_values'][:, i], data['target_rewards'][:, i], data['target_policies'][:, i])
+                # Scale gradient by the number of unroll steps (See paper appendix Training)
+                value_loss += scale_gradient(current_value_loss, 1./i)#register_hook(lambda grad: grad / gradient_scale_batch[:, i])
+                reward_loss += scale_gradient(current_reward_loss, 1./i)#.register_hook(lambda grad: grad / gradient_scale_batch[:, i])
+                policy_loss += scale_gradient(current_policy_loss, 1./i)#.register_hook(lambda grad: grad / gradient_scale_batch[:, i])
 
-        loss = value_loss * self.sts.value_loss_weight + reward_loss + policy_loss
-        # Mean over batch dimension (pseudocode do a sum)
-        loss = loss.mean()
+            loss = value_loss * self.sts.value_loss_weight + reward_loss + policy_loss
 
-        # Optimize
-        self.optimizer.zero_grad()
-        loss.backward()
-        self.optimizer.step()
-        self.training_step += 1
-    """
+            loss = loss.mean()
+
+            # Optimize
+            self.optimizer.zero_grad()
+            loss.backward()
+            self.optimizer.step()
+            self.training_step += 1
 
     def prediction(self, encoded_state):
         policy, value = self.prediction_network(encoded_state)

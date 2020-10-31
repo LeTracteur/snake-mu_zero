@@ -17,8 +17,6 @@ def main(stg):
     agent = muzero_model.MuZero(settings.model)
     agent.build()
 
-    temperature_threshold = None
-
     for ep in range(nb_episodes):
         game = Game(settings.game, env.action_space)
         observation = env.reset()
@@ -46,10 +44,10 @@ def main(stg):
                 break
 
             observation = new_obs
-    return replay_buffer
+    return replay_buffer, agent
 
 
 if __name__ == '__main__':
     setting_file = sys.argv[1]
     stg_obj = utils.load_stgs(setting_file)
-    a = main(stg_obj)
+    rp, a = main(stg_obj)

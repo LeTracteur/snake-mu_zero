@@ -25,7 +25,7 @@ class ReplayBuffer:
                  "target_values": [],
                  "target_rewards": [],
                  "target_policies": [],
-                 "target_actions": [],
+                 "actions": [],
                  "mask_policy": []}
 
         games = [self.get_game() for _ in range(self.batch_size)]
@@ -37,7 +37,7 @@ class ReplayBuffer:
             batch["target_values"].append(t_val)
             batch["target_rewards"].append(t_reward)
             batch["target_policies"].append(t_policies)
-            batch["target_actions"].append(t_actions)
+            batch["actions"].append(t_actions)
             batch["mask_policy"].append(mask_policy)
         for key in batch.keys():
             batch[key] = np.array(batch[key])
