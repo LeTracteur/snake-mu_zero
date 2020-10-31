@@ -136,11 +136,16 @@ class MuZero(Model):
     def __init__(self, settings):
         super().__init__()
         self.sts = settings
+        self.training_step = 0
 
     def build(self):
         self.representation_network = RepresentationNetwork(self.sts)
         self.dynamics_network = DynamicsNetwork(self.sts)
         self.prediction_network = PredictionNetwork(self.sts)
+        self.optimizer = tf.keras.optimizers.Adam(self.sts.learning_rate=0.001,
+                                                    self.sts.adam_beta_1=0.9,
+                                                    self.sts.adam_beta_2=0.999,
+                                                    self.sts.adam_epsilon=1e-07)
 
     def train(self, data):
         # obs, actions, target_value, target_reward, target_policy = data
@@ -166,15 +171,14 @@ class MuZero(Model):
                 reward_loss += scale_gradient(current_reward_loss, 1./i)#.register_hook(lambda grad: grad / gradient_scale_batch[:, i])
                 policy_loss += scale_gradient(current_policy_loss, 1./i)#.register_hook(lambda grad: grad / gradient_scale_batch[:, i])
 
-            loss = value_loss * self.sts.value_loss_weight + reward_loss + policy_loss
+                loss = value_loss * self.sts.value_loss_weight + reward_loss + policy_loss
 
-            loss = loss.mean()
+            loss = tf.reduce_mean(loss)
 
-            # Optimize
-            self.optimizer.zero_grad()
-            loss.backward()
-            self.optimizer.step()
-            self.training_step += 1
+        # Optimize
+        grads = model_tape.gradient(loss, self.trainable_variables)
+        self.optimizer.apply_gradients(zip(grads, model.trainable_variables))
+        self.training_step += 1
 
     def prediction(self, encoded_state):
         policy, value = self.prediction_network(encoded_state)
