@@ -116,7 +116,7 @@ def video_summary(name, video, step=None, fps=5):
     tf.summary.image(name + '/grid', frames, step)
 
 def grid_to_color(grid, color_settings):
-    img = np.zeros((grid.shape[0], grid.shape[1], 3))
+    img = np.zeros((grid.shape[0], grid.shape[1], 3),dtype=np.uint8)
     _grid = np.squeeze(grid)
     img[_grid == color_settings.f_color.id] = np.array(eval(color_settings.f_color.rgb))
     img[_grid == color_settings.sh_color.id] = np.array(eval(color_settings.sh_color.rgb))
