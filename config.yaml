@@ -43,6 +43,10 @@ model:
   value_layers: [128,32]
   policy_layers: [128,32]
   reward_layers: [128,32]
+  learning_rate: 0.001, 
+  adam_beta_1: 0.9, 
+  adam_beta_2: 0.999, 
+  adam_epsilon: 1e-07
 game:
   discount: 0.997
 mcts:
