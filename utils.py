@@ -115,16 +115,14 @@ def video_summary(name, video, step=None, fps=5):
     frames = video.transpose((0, 2, 1, 3, 4)).reshape((1, B * H, T * W, C))
     tf.summary.image(name + '/grid', frames, step)
 
-
-def image_to_color(grid):
+def grid_to_color(grid, color_settings):
     img = np.zeros((grid.shape[0], grid.shape[1], 3))
-    img[grid == GREEN_ID] = np.array(GREEN)
-    img[grid == HEAD_YELLOW_ID] = np.array(HEAD_YELLOW)
-    img[grid == BODY_YELLOW_ID] = np.array(BODY_YELLOW)
-    img[grid == BLACK_ID] = np.array(BLACK)
-    img[grid == WALL_ID] = np.array(WALL)
+    img[grid == color_settings.f_color.id] = np.array(color_settings.f_color.id)
+    img[grid == color_settings.sh_color.id] = np.array(color_settings.sh_color.rgb)
+    img[grid == color_settings.sb_color.id] = np.array(color_settings.sb_color.rgb)
+    img[grid == color_settings.bg_color.id] = np.array(color_settings.bg_color.rgb)
+    img[grid == color_settings.wall_color.id] = np.array(color_settings.wall_color.rgb)
     return img
-
 
 def init_ep():
     epd = {}

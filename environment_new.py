@@ -144,6 +144,9 @@ class SnakeEnv:
 
         self.display_screen()
 
+    def draw_game(self, game, name):
+	utils.video_summary(name, np.array([utils.image_to_color(frame, self.settings) for frame in game.observation_history]))
+
     def display_screen(self):
         self.screen.fill(eval(self.settings.wall_color.rgb))
         pygame.draw.rect(self.screen, eval(self.settings.bg_color.rgb), [self.wall_size, self.wall_size, self.width - 2*self.wall_size, self.length - 2*self.wall_size])
