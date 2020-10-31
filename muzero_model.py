@@ -164,7 +164,6 @@ class MuZero(Model):
             value, reward, policy_logits, hidden_state = self.initial_inference(data['observation_batch'])
             predictions = [[value, reward, policy_logits]]
             for i in range(1, data['actions'].shape[-1]):
-                print(hidden_state.shape)
                 value, reward, policy_logits, hidden_state = self.recurrent_inference(hidden_state, np.expand_dims(data['actions'][:, i],0))
                 # Scale the gradient at the start of the dynamics function (See paper appendix Training)
                 hidden_state = scale_grad(hidden_state, 0.5)#egister_hook(lambda grad: grad * 0.5)
@@ -178,9 +177,9 @@ class MuZero(Model):
             for i, prediction in enumerate(predictions[1:], 1):
                 current_value_loss, current_reward_loss, current_policy_loss = self.loss_function(prediction[0], prediction[1], prediction[2], data['target_values'][:, i], data['target_rewards'][:, i], data['target_policies'][:, i])
                 # Scale gradient by the number of unroll steps (See paper appendix Training)
-                value_loss += scale_grad(current_value_loss, 1./i)#register_hook(lambda grad: grad / gradient_scale_batch[:, i])
-                reward_loss += scale_grad(current_reward_loss, 1./i)#.register_hook(lambda grad: grad / gradient_scale_batch[:, i])
-                policy_loss += scale_grad(current_policy_loss, 1./i)#.register_hook(lambda grad: grad / gradient_scale_batch[:, i])
+                value_loss += scale_grad(current_value_loss, 1./i)*data['mask_policy'][:,i]#register_hook(lambda grad: grad / gradient_scale_batch[:, i])
+                reward_loss += scale_grad(current_reward_loss, 1./i)*data['mask_policy'][:,i]#.register_hook(lambda grad: grad / gradient_scale_batch[:, i])
+                policy_loss += scale_grad(current_policy_loss, 1./i)*data['mask_policy'][:,i]#.register_hook(lambda grad: grad / gradient_scale_batch[:, i])
 
                 loss = value_loss * self.sts.value_loss_weight + reward_loss + policy_loss
 
@@ -190,6 +189,7 @@ class MuZero(Model):
         grads = model_tape.gradient(loss, self.get_trainable_variables())
         self.optimizer.apply_gradients(zip(grads, self.get_trainable_variables()))
         self.training_step += 1
+        return tf.reduce_mean(value_loss), tf.reduce_mean(reward_loss), tf.reduce_mean(policy_loss), loss
 
     def prediction(self, encoded_state):
         policy, value = self.prediction_network(encoded_state)
