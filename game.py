@@ -1,5 +1,7 @@
 import muzero_model
+import pickle
 from utils import *
+import uuid
 
 
 class Game:
@@ -29,3 +31,10 @@ class Game:
             stacked_obs = np.concatenate((stacked_obs, previous_obs), axis=-1)
 
         return stacked_obs[:,:,:num_stacked_observations*2]
+
+    def dump(self):
+        if not os.path.exists('games'):
+            os.mkdir('games')
+
+        with open("games/game_"+str(uuid.uuid4().hex), "wb") as f:
+            pickle.dump(self, f)

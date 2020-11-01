@@ -6,3 +6,4 @@ model
 logs
 __pycache__
 *.buf
+games
