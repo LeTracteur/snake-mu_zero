@@ -23,7 +23,10 @@ def main(stg):
         tf.config.experimental.set_memory_growth(gpu, True)
     agent = muzero_model.MuZero(settings.model)
     agent.build()
+    agent.load_weights()
 
+    last_ep = 0
+    replay_buffer.load_games_from_folder(load_from_seen = True)
     current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     train_log_dir = 'logs/tensorboard/' + current_time + '/train'
     train_summary_writer = tf.summary.create_file_writer(train_log_dir)
@@ -31,6 +34,7 @@ def main(stg):
     while True:
         replay_buffer.load_games_from_folder()
         ep = len(replay_buffer.buffer)
+        step, reward, obs_hist = replay_buffer.last_n_games_stat(10)
         value_loss, reward_loss, policy_loss, total_loss = 0, 0, 0, 0
         for _ in range(train_for):
             data_batch = replay_buffer.get_batch(agent)
@@ -47,10 +51,16 @@ def main(stg):
             tf.summary.scalar('reward_loss', reward_loss / train_for, step=ep)
             tf.summary.scalar('policy_loss', policy_loss / train_for, step=ep)
             tf.summary.scalar('total_loss', total_loss / train_for, step=ep)
-            #tf.summary.scalar('steps', step, step=ep)
-            #tf.summary.scalar('reward', np.sum(game.rewards_history), step=ep)
-            #tf.summary.scalar('score', env.score, step=ep)
-            #env.draw_game(game, 'train_gif', ep)
+            tf.summary.scalar('steps', step, step=ep)
+            tf.summary.scalar('reward', reward, step=ep)
+            tf.summary.scalar('training_steps', agent.training_step, step=ep)
+            env.draw_game(obs_hist, 'train_gif', ep)
+
+        if ep-last_ep > 100:
+            last_ep = ep
+            print('Training statistics:')
+            print('ep:'+str(ep)+', value_loss:'+str(value_loss.numpy().item())+', reward_loss:'+str(reward_loss.numpy().item())+', policy_loss:'+str(policy_loss.numpy().item())+', total_loss:'+str(total_loss.numpy().item())+', steps:'+str(step)+', reward:'+str(reward)+', training_steps:'+str(agent.training_step)+'.')
+
 
 
 if __name__ == '__main__':

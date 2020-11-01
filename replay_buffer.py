@@ -38,12 +38,13 @@ class ReplayBuffer:
                     self.save_game(game)
 
             game_to_load = glob.glob("games/*.game")
-            for g in game_to_load:
-                with open(g, 'rb') as f:
-                    game = pickle.load(f)
-                self.save_game(game)
-                name = g.split('/')[-1]
-                shutil.move(g, "games/seen/"+name)
+            if game_to_load:
+                for g in game_to_load:
+                    with open(g, 'rb') as f:
+                        game = pickle.load(f)
+                    self.save_game(game)
+                    name = g.split('/')[-1]
+                    shutil.move(g, "games/seen/"+name)
 
     def get_batch(self, model):
         batch = {"observation_batch": [],
@@ -117,7 +118,7 @@ class ReplayBuffer:
 
     def last_n_games_stat(self, n):
         last_n = self.buffer[-n:]
-        steps = sum([len(last_n[i].reward_history) for i in range(n)]) / n
-        reward = sum([sum(last_n[i].reward_history) for i in range(n)]) / n
+        steps = sum([len(last_n[i].rewards_history) for i in range(n)]) / n
+        reward = sum([sum(last_n[i].rewards_history) for i in range(n)]) / n
         obs_histo = last_n[-1].observation_history
         return steps, reward, obs_histo
