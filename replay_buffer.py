@@ -23,13 +23,20 @@ class ReplayBuffer:
             self.buffer.pop(0)
         self.buffer.append(game)
 
-    def load_games_from_folder(self):
+    def load_games_from_folder(self, load_from_seen=False):
         if not os.path.exists('games'):
             print('No folder were to find game')
             exit(1)
         else:
             if not os.path.exists('games/seen'):
                 os.mkdir("games/seen")
+            if load_from_seen:
+                game_to_load = glob.glob("games/seen/*.game")
+                for g in game_to_load:
+                    with open(g, 'rb') as f:
+                        game = pickle.load(f)
+                    self.save_game(game)
+
             game_to_load = glob.glob("games/*.game")
             for g in game_to_load:
                 with open(g, 'rb') as f:
