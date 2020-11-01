@@ -191,6 +191,16 @@ class MuZero(Model):
         self.training_step += 1
         return tf.reduce_mean(value_loss), tf.reduce_mean(reward_loss), tf.reduce_mean(policy_loss), loss
 
+    def save_weights(self):
+        self.representation_network.save_weights(self.sts.model_path)
+        self.dynamics_network.save_weights(self.sts.model_path)
+        self.prediction_network.save_weights(self.sts.model_path)
+
+    def load_weights(self):
+        self.representation_network.load_weights(self.sts.model_path)
+        self.dynamics_network.load_weights(self.sts.model_path)
+        self.prediction_network.load_weights(self.sts.model_path)
+
     def prediction(self, encoded_state):
         policy, value = self.prediction_network(encoded_state)
         return policy, value
