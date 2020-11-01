@@ -107,3 +107,10 @@ class ReplayBuffer:
         for i, reward in enumerate(game.rewards_history[idx:bootstrap_index]):
             value += reward * game.discount ** i
         return value
+
+    def last_n_games_stat(self, n):
+        last_n = self.buffer[-n:]
+        steps = sum([len(last_n[i].reward_history) for i in range(n)]) / n
+        reward = sum([sum(last_n[i].reward_history) for i in range(n)]) / n
+        obs_histo = last_n[-1].observation_history
+        return steps, reward, obs_histo
