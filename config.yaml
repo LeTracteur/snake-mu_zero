@@ -1,4 +1,4 @@
-nb_episodes: 10
+nb_episodes: 3
 steps: 2000
 train_for: 5
 train_every: 1

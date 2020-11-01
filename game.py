@@ -36,5 +36,5 @@ class Game:
         if not os.path.exists('games'):
             os.mkdir('games')
 
-        with open("games/game_"+str(uuid.uuid4().hex), "wb") as f:
+        with open("games/game_"+str(uuid.uuid4().hex)+".game", "wb") as f:
             pickle.dump(self, f)
