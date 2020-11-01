@@ -1,6 +1,9 @@
 import numpy as np
 import muzero_model
-
+import os
+import pickle
+import glob
+import shutil
 
 class ReplayBuffer:
     def __init__(self, settings):
@@ -19,6 +22,21 @@ class ReplayBuffer:
         if len(self.buffer) > self.buffer_size:
             self.buffer.pop(0)
         self.buffer.append(game)
+
+    def load_games_from_folder(self):
+        if not os.path.exists('games'):
+            print('No folder were to find game')
+            exit(1)
+        else:
+            if not os.path.exists('games/seen'):
+                os.mkdir("games/seen")
+            game_to_load = glob.glob("games/*.game")
+            for g in game_to_load:
+                with open(g, 'rb') as f:
+                    game = pickle.load(f)
+                self.save_game(game)
+                name = g.split('/')[-1]
+                shutil.move(g, "games/seen/"+name)
 
     def get_batch(self, model):
         batch = {"observation_batch": [],
