@@ -1,4 +1,4 @@
-nb_episodes: 10
+nb_episodes: 100000
 steps: 2000
 train_for: 5
 train_every: 1
@@ -50,6 +50,7 @@ model:
   adam_beta_2: 0.999
   adam_epsilon: 1e-07
   value_loss_weight: 0.25
+  model_path: log/model
 game:
   discount: 0.997
 mcts:
