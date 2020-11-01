@@ -1,7 +1,7 @@
-nb_episodes: 50
+nb_episodes: 10
 steps: 2000
-train_for: 20
-train_every: 10
+train_for: 5
+train_every: 1
 players: [0]
 env:
   action_space: 5
