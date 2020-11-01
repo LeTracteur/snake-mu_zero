@@ -5,3 +5,5 @@ model
 **.pyc
 logs
 __pycache__
+*.buf
+games
