@@ -38,7 +38,8 @@ class MCTS:
                     exploration_fraction=self.sts.root_exploration_fraction,
                 )
 
-        min_max_stats = MinMaxStats()
+        list_min_max_stats = [MinMaxStats() for _ in range(observation.shape[0])]
+        # min_max_stats =
 
         max_tree_depth = [0]*observation.shape[0]
         for _ in range(self.sts.num_simulations):
@@ -46,14 +47,14 @@ class MCTS:
             search_path_list = []
             action_list = []
             tree_depth = []
-            for root in roots:
+            for i,root in enumerate(roots):
                 virtual_to_play = to_play
                 node = root
                 search_path = [node]
                 current_tree_depth = 0
                 while node.expanded():
                     current_tree_depth += 1
-                    action, node = self.select_child(node, min_max_stats)
+                    action, node = self.select_child(node, list_min_max_stats[i])
                     search_path.append(node)
 
                     # Players play turn by turn
@@ -78,7 +79,7 @@ class MCTS:
                 node.expand(self.sts.action_pos, virtual_to_play, tf.expand_dims(reward[i], 0), tf.expand_dims(policy_logits[i], 0), tf.expand_dims(hidden_state[i], 0))
             for i, search_path in enumerate(search_path_list):
                 # print(search_path)
-                self.backpropagate(search_path, tf.expand_dims(value[i], 0), virtual_to_play, min_max_stats)
+                self.backpropagate(search_path, tf.expand_dims(value[i], 0), virtual_to_play, list_min_max_stats[i])
             print(max_tree_depth)
             print(tree_depth)
             max_tree_depth = list(map(max, zip(max_tree_depth, tree_depth)))

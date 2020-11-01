@@ -5,19 +5,21 @@ from environment_new import *
 from game import Game
 from replay_buffer import ReplayBuffer
 import muzero_model
-from muzero_mcts import MCTS, select_action, select_temperature
+from muzero_mcts_para import MCTS, select_action, select_temperature
 import datetime
 import tensorflow as tf
 
 
 def main(stg):
     settings = utils.Obj(stg)
-    env = SnakeEnv(settings.env)
+    # env = SnakeEnv(settings.env)
     nb_episodes = settings.nb_episodes
     steps = settings.steps
     train_for = settings.train_for
     train_every = settings.train_every
     replay_buffer = ReplayBuffer(settings.buffer)
+
+    parallel_buffer_size = settings.para.size
 
     agent = muzero_model.MuZero(settings.model)
     agent.build()
@@ -26,34 +28,47 @@ def main(stg):
     train_log_dir = 'logs/tensorboard/' + current_time + '/train'
     train_summary_writer = tf.summary.create_file_writer(train_log_dir)
 
-    for ep in range(nb_episodes):
-        game = Game(settings.game, env.action_space)
-        observation = env.reset()
-        temperature = select_temperature(ep)
+    envs = [SnakeEnv(settings.env) for _ in range(parallel_buffer_size)]
+    popped_envs = []
+    for ep in range(2):
+        games = [Game(settings.game, env.action_space) for env in envs]
+        # game = Game(settings.game, env.action_space)
+        observations = [env.reset() for env in envs]
+        # observations = np.array(observations)
 
+        temperature = select_temperature(ep)
         for step in range(steps):
+            print('Current number of envs: '+str(len(envs)))
             # visual rendering
             # env.render()
+            stacked_observations_batch = []
+            for i, game in enumerate(games):
+                game.observation_history.append(observations[i])
+                stacked_observations = game.get_stacked_observations(-1, settings.model.stacked_frame)
+                stacked_observations_batch.append(stacked_observations)
 
-            game.observation_history.append(observation)
-            stacked_observations = game.get_stacked_observations(-1, settings.model.stacked_frame)
-
-            stacked_observations_batch = np.array([stacked_observations for _ in range(10)])
+            # stacked_observations = game.get_stacked_observations(-1, settings.model.stacked_frame)
+            stacked_observations_batch = np.array(stacked_observations_batch)
             # print(stacked_observations_batch.shape)
-            root, tree_depth = MCTS(settings.mcts).run(agent, stacked_observations_batch, [0, 1, 2, 3, 4], 0, True)
-            game.store_MTCS_stat(root)
-            action = select_action(root, temperature)
-
-            new_obs, reward, terminal = env.step(action)
-
-            game.actions_history.append(action)
-            game.rewards_history.append(reward)
-
-            if terminal:
-                replay_buffer.save_game(game)
+            print('Going in mcts')
+            roots, tree_depths = MCTS(settings.mcts).run(agent, stacked_observations_batch, [0, 1, 2, 3, 4], 0, True)
+            print('MCTS done')
+            observations = []
+            for i, root in enumerate(roots):
+                games[i].store_MTCS_stat(root)
+                action = select_action(root, temperature)
+                new_obs, reward, terminal = envs[i].step(action)
+                games[i].actions_history.append(action)
+                games[i].rewards_history.append(reward)
+                if terminal:
+                    replay_buffer.save_game(games[i])
+                    games.pop(i)
+                    popped_envs.append(envs.pop(i))
+                else:
+                    observations.append(new_obs)
+            if not envs:
+                envs = popped_envs
                 break
-
-            observation = new_obs
 
         if ep%train_every == 0:
             value_loss, reward_loss, policy_loss, total_loss = 0, 0, 0, 0

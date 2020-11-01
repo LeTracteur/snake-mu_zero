@@ -64,3 +64,5 @@ mcts:
   action_space: 5
   action_pos: [0,1,2,3,4]
   discount: 0.997
+para:
+  size: 128
