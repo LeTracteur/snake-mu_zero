@@ -4,6 +4,7 @@ import os
 import pickle
 import glob
 import shutil
+from itertools import zip_longest
 
 class ReplayBuffer:
     def __init__(self, settings):
@@ -52,19 +53,39 @@ class ReplayBuffer:
                  "target_rewards": [],
                  "target_policies": [],
                  "actions": [],
-                 "mask_policy": []}
+                 "mask": [],
+                 "dynamic_mask": []}
 
         games = [self.get_game() for _ in range(self.batch_size)]
         game_pos = [(g, self.get_pos_in_g(g)) for g in games]
 
+        actions, target_value, target_reward, target_policy = [], [], [], []
+
         for (g, i) in game_pos:
-            t_val, t_reward, t_policies, t_actions, mask_policy = self.make_target(g, i, model)
+            t_val, t_reward, t_policies, actions = self.make_target(g, i, model)
             batch["observation_batch"].append(g.get_stacked_observations(i, self.num_stacked_obs))
-            batch["target_values"].append(t_val)
-            batch["target_rewards"].append(t_reward)
-            batch["target_policies"].append(t_policies)
-            batch["actions"].append(t_actions)
-            batch["mask_policy"].append(mask_policy)
+            batch['target_values'].append(t_val)  # targets
+            batch['target_rewards'].append(t_reward)  # targets
+            batch['target_policies'].append(t_policies)  # targets
+            actions.append(actions)
+
+        batch['actions'] = list(zip_longest(actions, fillvalue=None))
+
+        mask = []
+        dynamic_mask = []
+        last_mask = [True] * len(batch["observation_batch"])
+
+        for i, actions_batch in enumerate(batch['actions']):
+            mask = list(map(lambda a: bool(a), actions_batch))
+            dynamic_mask = [now for last, now in zip(last_mask, mask) if last]
+            mask.append(mask)
+            dynamic_mask.append(dynamic_mask)
+            last_mask = mask
+            batch['actions'][i] = [action.index for action in actions_batch if action]
+
+        batch['mask'] = mask
+        batch['dynamic_mask'] = dynamic_mask
+
         for key in batch.keys():
             batch[key] = np.array(batch[key], dtype=np.float32)
         return batch
@@ -78,7 +99,7 @@ class ReplayBuffer:
         return pos
 
     def make_target(self, game, start_index, model):
-        target_values, target_rewards, target_policies, actions, mask_policy = [], [], [], [], []
+        target_values, target_rewards, target_policies, actions = [], [], [], []
         for idx in range(start_index, start_index + self.num_unroll_steps + 1):
 
             value = self.compute_value(game, idx, model)
@@ -88,16 +109,17 @@ class ReplayBuffer:
                 target_rewards.append(game.rewards_history[idx])
                 target_policies.append(game.child_visits[idx])
                 actions.append(game.actions_history[idx])
-                mask_policy.append(True)
+                # mask_policy.append(True)
             else:
                 # States past the end of games are treated as absorbing states
                 target_values.append(0)
                 target_rewards.append(0)
-                target_policies.append([0.0 for _ in range(self.action_space)])
-                actions.append(np.random.choice(game.actions_history))
-                mask_policy.append(False)
+                target_policies.append([])
+                # target_policies.append([0.0 for _ in range(self.action_space)])
+                # actions.append(np.random.choice(game.actions_history))
+                # mask_policy.append(False)
 
-        return target_values, target_rewards, target_policies, actions, mask_policy
+        return target_values, target_rewards, target_policies, actions
 
     def compute_value(self, game, idx, model):
         bootstrap_index = idx + self.td_steps
