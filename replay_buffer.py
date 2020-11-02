@@ -71,20 +71,20 @@ class ReplayBuffer:
 
         batch['actions'] = list(zip_longest(actions, fillvalue=None))
 
-        mask = []
-        dynamic_mask = []
+        all_mask = []
+        all_dynamic_mask = []
         last_mask = [True] * len(batch["observation_batch"])
 
         for i, actions_batch in enumerate(batch['actions']):
             mask = list(map(lambda a: bool(a), actions_batch))
             dynamic_mask = [now for last, now in zip(last_mask, mask) if last]
-            mask.append(mask)
-            dynamic_mask.append(dynamic_mask)
+            all_mask.append(mask)
+            all_dynamic_mask.append(dynamic_mask)
             last_mask = mask
-            batch['actions'][i] = [action.index for action in actions_batch if action]
+            batch['actions'][i] = [action for action in actions_batch if action]
 
-        batch['mask'] = mask
-        batch['dynamic_mask'] = dynamic_mask
+        batch['mask'] = all_mask
+        batch['dynamic_mask'] = all_dynamic_mask
 
         for key in batch.keys():
             batch[key] = np.array(batch[key], dtype=np.float32)
