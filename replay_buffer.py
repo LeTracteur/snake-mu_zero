@@ -19,6 +19,11 @@ class ReplayBuffer:
 
         self.buffer = []
 
+        # variables for loading games from files
+        self.current_game_folder = settings.current_game_folder
+        self.max_nb_of_g_per_folder = settings.max_nb_of_g_per_folder
+        self.current_number_of_g = 0
+
     def save_game(self, game):
         if len(self.buffer) > self.buffer_size:
             self.buffer.pop(0)
@@ -26,27 +31,48 @@ class ReplayBuffer:
 
     def load_games_from_folder(self, load_from_seen=False):
         if not os.path.exists('games'):
-            print('No folder were to find game')
+            print('No folder where to find games')
             exit(1)
         else:
             if not os.path.exists('games/seen'):
                 os.mkdir("games/seen")
+                os.mkdir("games/seen"+self.current_game_folder)
             if load_from_seen:
-                game_to_load = glob.glob("games/seen/*.game")
-                for g in game_to_load:
-                    with open(g, 'rb') as f:
-                        game = pickle.load(f)
-                    self.save_game(game)
+                games_files = glob.glob("games/seen/*.game")
+                if games_files:
+                    for g in games_files:
+                        if self.current_number_of_g == self.max_nb_of_g_per_folder:
+                            new_id = int(self.current_game_folder.split("_")[-1]) + 1
+                            self.current_game_folder = "games_batch_" + str(new_id)
+                            os.mkdir("games/seen"+self.current_game_folder)
+                            self.current_number_of_g = 0
+
+                        name = g.split('/')[-1]
+                        shutil.move(g, "games/seen"+self.current_game_folder + "/" + name)
+                        self.current_number_of_g += 1
+
+                game_to_load = glob.glob("games/seen/*/*.game")
+                if game_to_load:
+                    for g in game_to_load:
+                        with open(g, 'rb') as f:
+                            game = pickle.load(f)
+                        self.save_game(game)
 
             game_to_load = glob.glob("games/*.game")
             if game_to_load:
                 for g in game_to_load:
+                    if self.current_number_of_g == self.max_nb_of_g_per_folder:
+                        new_id = int(self.current_game_folder.split("_")[-1]) + 1
+                        self.current_game_folder = "games_batch_" + str(new_id)
+                        os.mkdir("games/seen"+self.current_game_folder)
+                        self.current_number_of_g = 0
                     try:
                         with open(g, 'rb') as f:
                             game = pickle.load(f)
                         self.save_game(game)
                         name = g.split('/')[-1]
-                        shutil.move(g, "games/seen/"+name)
+                        shutil.move(g, "games/seen"+self.current_game_folder + "/" + name)
+                        self.current_number_of_g += 1
                     except:
                         pass
 

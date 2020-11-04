@@ -34,6 +34,8 @@ buffer:
   stacked_frame: 16
   support_size: 10
   action_space: 5
+  current_game_folder: games_batch_0
+  max_nb_of_g_per_folder: 1000
 model:
   depth: 128
   reduced_depth: 32
