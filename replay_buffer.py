@@ -48,7 +48,7 @@ class ReplayBuffer:
                             self.current_number_of_g = 0
 
                         name = g.split('/')[-1]
-                        shutil.move(g, "games/seen"+self.current_game_folder + "/" + name)
+                        shutil.move(g, "games/seen/"+self.current_game_folder + "/" + name)
                         self.current_number_of_g += 1
 
                 game_to_load = glob.glob("games/seen/*/*.game")
