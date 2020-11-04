@@ -36,7 +36,10 @@ class ReplayBuffer:
         else:
             if not os.path.exists('games/seen'):
                 os.mkdir("games/seen")
-                os.mkdir("games/seen"+self.current_game_folder)
+
+            if not os.path.exists("games/seen/" + self.current_game_folder):
+                os.mkdir("games/seen/" + self.current_game_folder)
+
             if load_from_seen:
                 games_files = glob.glob("games/seen/*.game")
                 if games_files:
@@ -51,12 +54,28 @@ class ReplayBuffer:
                         shutil.move(g, "games/seen/"+self.current_game_folder + "/" + name)
                         self.current_number_of_g += 1
 
-                game_to_load = glob.glob("games/seen/*/*.game")
-                if game_to_load:
-                    for g in game_to_load:
-                        with open(g, 'rb') as f:
-                            game = pickle.load(f)
-                        self.save_game(game)
+            if load_from_seen:
+                batches = os.listdir("games/seen/")
+                for batch in batches:
+                    games_files = glob.glob("games/seen/"+batch+"/*.game")
+                    if games_files:
+                        for g in games_files:
+                            if self.current_number_of_g == self.max_nb_of_g_per_folder:
+                                new_id = int(self.current_game_folder.split("_")[-1]) + 1
+                                self.current_game_folder = "games_batch_" + str(new_id)
+                                os.mkdir("games/seen/"+self.current_game_folder)
+                                self.current_number_of_g = 0
+
+                            name = g.split('/')[-1]
+                            shutil.move(g, "games/seen/"+self.current_game_folder + "/" + name)
+                            self.current_number_of_g += 1
+
+                    game_to_load = glob.glob("games/seen/*/*.game")
+                    if game_to_load:
+                        for g in game_to_load:
+                            with open(g, 'rb') as f:
+                                game = pickle.load(f)
+                            self.save_game(game)
 
             game_to_load = glob.glob("games/*.game")
             if game_to_load:

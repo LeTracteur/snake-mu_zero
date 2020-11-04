@@ -23,6 +23,7 @@ def main(stg):
         tf.config.experimental.set_memory_growth(gpu, True)
     agent = muzero_model.MuZero(settings.model)
     agent.build()
+    #agent.load_weights()
     try:
         agent.load_weights()
     except:
