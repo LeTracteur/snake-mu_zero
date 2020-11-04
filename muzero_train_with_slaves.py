@@ -60,9 +60,9 @@ def main(stg):
             tf.summary.scalar('training_steps', agent.training_step, step=ep)
             env.draw_game(obs_hist, 'train_gif', ep)
 
-        #if ep-last_ep > 25:
-        #    last_ep = ep
-        #    print('ep:'+str(ep)+', value_loss:'+str(value_loss.numpy().item()/train_for)+', reward_loss:'+str(reward_loss.numpy().item()/train_for)+', policy_loss:'+str(policy_loss.numpy().item()/train_for)+', total_loss:'+str(total_loss.numpy().item()/train_for)+', steps:'+str(step)+', reward:'+str(reward)+', training_steps:'+str(agent.training_step)+'.')
+        if ep-last_ep > 25:
+            last_ep = ep
+            print('ep:'+str(ep)+', value_loss:'+str(value_loss.numpy().item()/train_for)+', reward_loss:'+str(reward_loss.numpy().item()/train_for)+', policy_loss:'+str(policy_loss.numpy().item()/train_for)+', total_loss:'+str(total_loss.numpy().item()/train_for)+', steps:'+str(step)+', reward:'+str(reward)+', training_steps:'+str(agent.training_step)+'.')
 
 
 

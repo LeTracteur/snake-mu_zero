@@ -159,7 +159,6 @@ class MuZero:
     def train(self, data):
         obs, targets_init, targets_time, actions_time, mask_time, dynamic_mask_time = data
         with tf.GradientTape() as model_tape:
-        #def loss():
             # Acquire state
             value, reward, policy_logits, hidden_state = self.initial_inference(np.array(obs), training=True)
             target_value, target_reward, target_policy = zip(*targets_init)
@@ -205,16 +204,12 @@ class MuZero:
                 k += 1 
 
             loss = tf.reduce_mean(loss)
-            print(loss, reward_loss)
-            #return loss
-
+        
         # Optimize
         grads = model_tape.gradient(loss, self.get_trainable_variables())
         self.optimizer.apply_gradients(zip(grads, self.get_trainable_variables()))
-        #self.optimizer.minimize(loss=loss, var_list=self.get_trainable_variables())#apply_gradients(zip(grads, self.get_trainable_variables()))
         self.training_step += 1
-        #return 0.0, 0.0, 0.0, 0.0#loss
-        return 0.0, 0.0, 0.0, 0.0#loss
+        return value_loss/k, reward_loss/(k-1), policy_loss/k, loss/k
 
     def save_weights(self):
         self.representation_network.save_weights(self.sts.model_path+'/representation/weights')
