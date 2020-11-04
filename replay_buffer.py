@@ -71,7 +71,7 @@ class ReplayBuffer:
                             game = pickle.load(f)
                         self.save_game(game)
                         name = g.split('/')[-1]
-                        shutil.move(g, "games/seen"+self.current_game_folder + "/" + name)
+                        shutil.move(g, "games/seen/"+self.current_game_folder + "/" + name)
                         self.current_number_of_g += 1
                     except:
                         pass
