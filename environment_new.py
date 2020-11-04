@@ -15,7 +15,6 @@ class SnakeEnv:
         self.snake_size = self.settings.snake_pixels*self.settings.pixel_size
 
         self.action_space = self.settings.action_space
-        self.states_space = np.zeros((self.width, self.length), dtype=np.uint8)
 
         self.score = 0
         self.previous_action = False
@@ -29,10 +28,20 @@ class SnakeEnv:
         self.possible_x = [i for i in range(self.wall_size, self.width-self.wall_size, self.snake_size)]
         self.possible_y = [i for i in range(self.wall_size, self.length-self.wall_size, self.snake_size)]
 
-        self.states_space[:, 0:self.wall_size] = self.settings.wall_color.id
-        self.states_space[:, -self.wall_size:] = self.settings.wall_color.id
-        self.states_space[-self.wall_size:, :] = self.settings.wall_color.id
-        self.states_space[0:self.wall_size, :] = self.settings.wall_color.id
+        self.grid_in_rgb = bool(settings.grid_in_rgb)
+
+        if not self.grid_in_rgb:
+            self.states_space = np.zeros((self.width, self.length), dtype=np.uint8)
+            self.states_space[:, 0:self.wall_size] = self.settings.wall_color.id
+            self.states_space[:, -self.wall_size:] = self.settings.wall_color.id
+            self.states_space[-self.wall_size:, :] = self.settings.wall_color.id
+            self.states_space[0:self.wall_size, :] = self.settings.wall_color.id
+        else:
+            self.states_space = np.zeros((self.width, self.length, 3), dtype=np.uint8)
+            self.states_space[:, 0:self.wall_size] = eval(self.settings.wall_color.rgb)
+            self.states_space[:, -self.wall_size:] = eval(self.settings.wall_color.rgb)
+            self.states_space[-self.wall_size:, :] = eval(self.settings.wall_color.rgb)
+            self.states_space[0:self.wall_size, :] = eval(self.settings.wall_color.rgb)
 
     def init_grid(self):
         self.head_x = random.choice(self.possible_x)
@@ -48,6 +57,12 @@ class SnakeEnv:
         self.foodx, self.foody = utils.add_food(self.possible_x, self.possible_y, self.snake_list)
 
     def reset(self):
+        if self.grid_in_rgb:
+            return self.reset_rgb()
+        else:
+            return self.reset_no_rgb()
+
+    def reset_no_rgb(self):
         self.init_grid()
         self.board_status = np.copy(self.states_space)
 
@@ -62,7 +77,28 @@ class SnakeEnv:
 
         return np.expand_dims(self.board_status, -1)
 
+    def reset_rgb(self):
+        self.init_grid()
+        self.board_status = np.copy(self.states_space)
+
+        for i in range(self.snake_size):
+            for j in range(self.snake_size):
+                self.board_status[self.foody + i][self.foodx + j] = eval(self.settings.f_color.rgb)
+                self.board_status[self.snake_head[1] + i][self.snake_head[0] + j] = eval(self.settings.sh_color.rgb)
+                for b in self.snake_list[:-1]:
+                    self.board_status[b[1] + i][b[0] + j] = eval(self.settings.sb_color.rgb)
+
+        self.score = 0
+
+        return self.board_status
+
     def get_state_map(self):
+        if self.grid_in_rgb:
+            return self.get_state_map_rgb()
+        else:
+            return self.get_state_map_no_rgb()
+
+    def get_state_map_no_rgb(self):
         self.board_status = np.copy(self.states_space)
 
         for i in range(self.snake_size):
@@ -78,6 +114,23 @@ class SnakeEnv:
                     self.board_status[self.snake_head[1] + i][self.snake_head[0] + j] = self.settings.sh_color.id
 
         return np.expand_dims(self.board_status, -1)
+
+    def get_state_map_rgb(self):
+        self.board_status = np.copy(self.states_space)
+
+        for i in range(self.snake_size):
+            for j in range(self.snake_size):
+                self.board_status[self.foody + i][self.foodx + j] = eval(self.settings.f_color.rgb)
+                for b in self.snake_list[:-1]:
+                    self.board_status[b[1] + i][b[0] + j] = eval(self.settings.sb_color.rgb)
+
+        if self.wall_size <= self.snake_head[0] < self.width - self.wall_size and self.wall_size <= self.snake_head[
+            1] < self.length - self.wall_size:
+            for i in range(self.snake_size):
+                for j in range(self.snake_size):
+                    self.board_status[self.snake_head[1] + i][self.snake_head[0] + j] = eval(self.settings.sh_color.rgb)
+
+        return self.board_status
 
     def step(self, action):
         terminal = False
