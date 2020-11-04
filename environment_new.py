@@ -124,8 +124,7 @@ class SnakeEnv:
                 for b in self.snake_list[:-1]:
                     self.board_status[b[1] + i][b[0] + j] = eval(self.settings.sb_color.rgb)
 
-        if self.wall_size <= self.snake_head[0] < self.width - self.wall_size and self.wall_size <= self.snake_head[
-            1] < self.length - self.wall_size:
+        if self.wall_size <= self.snake_head[0] < self.width - self.wall_size and self.wall_size <= self.snake_head[1] < self.length - self.wall_size:
             for i in range(self.snake_size):
                 for j in range(self.snake_size):
                     self.board_status[self.snake_head[1] + i][self.snake_head[0] + j] = eval(self.settings.sh_color.rgb)
@@ -149,9 +148,6 @@ class SnakeEnv:
         elif action == 3:
             self.y_change = self.snake_size
             self.x_change = 0
-        # elif action == 0:
-        #     if not self.previous_action:
-        #         self.x_change, self.y_change = 0, 0
 
         if self.previous_action:
             self.head_x += self.x_change
@@ -198,7 +194,16 @@ class SnakeEnv:
         self.display_screen()
 
     def draw_game(self, observation_history, name, ep):
+        if self.grid_in_rgb:
+            self.draw_game_rgb(observation_history, name, ep)
+        else:
+            self.draw_game_no_rgb(observation_history, name, ep)
+
+    def draw_game_no_rgb(self, observation_history, name, ep):
         utils.video_summary(name, np.expand_dims(np.array([utils.grid_to_color(frame, self.settings) for frame in observation_history]),0), ep)
+
+    def draw_game_rgb(self, observation_history, name, ep):
+        utils.video_summary(name, np.expand_dims(observation_history, 0), ep)
 
     def display_screen(self):
         self.screen.fill(eval(self.settings.wall_color.rgb))

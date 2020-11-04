@@ -10,7 +10,7 @@ env:
   wall_pixels: 1
   snake_pixels: 1
   pixel_size: 8
-  grid_in_rgb: 1
+  grid_in_rgb: 0
   bg_color:
     id: 0
     rgb: (0, 0, 0)
