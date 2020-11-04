@@ -44,7 +44,7 @@ class ReplayBuffer:
                         if self.current_number_of_g == self.max_nb_of_g_per_folder:
                             new_id = int(self.current_game_folder.split("_")[-1]) + 1
                             self.current_game_folder = "games_batch_" + str(new_id)
-                            os.mkdir("games/seen"+self.current_game_folder)
+                            os.mkdir("games/seen/"+self.current_game_folder)
                             self.current_number_of_g = 0
 
                         name = g.split('/')[-1]
@@ -64,7 +64,7 @@ class ReplayBuffer:
                     if self.current_number_of_g == self.max_nb_of_g_per_folder:
                         new_id = int(self.current_game_folder.split("_")[-1]) + 1
                         self.current_game_folder = "games_batch_" + str(new_id)
-                        os.mkdir("games/seen"+self.current_game_folder)
+                        os.mkdir("games/seen/"+self.current_game_folder)
                         self.current_number_of_g = 0
                     try:
                         with open(g, 'rb') as f:
