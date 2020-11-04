@@ -38,12 +38,12 @@ class ResidualBlock(Model):
         self.conv2 = tfkl.Conv2D(filters, (3,3), strides=(stride,stride), padding='same', use_bias=False, activation=tf.nn.leaky_relu)
         self.bn2 = tfkl.BatchNormalization()
 
-    def call(self, x):
+    def call(self, x, training):
         out = self.conv1(x)
-        out = self.bn1(out)
+        out = self.bn1(out, training=training)
         out = tf.nn.relu(out)
         out = self.conv2(out)
-        out = self.bn2(out)
+        out = self.bn2(out, training=training)
         out += x
         out = tf.nn.relu(out)
         return out
@@ -59,16 +59,16 @@ class DownSample(Model):
         self.resblocks3 = [ResidualBlock(depth) for _ in range(3)]
         self.pooling2 = tfkl.AveragePooling2D((3,3), strides=(2,2), padding='same')
 
-    def call(self, x):
+    def call(self, x, training):
         out = self.conv1(x)
         for block in self.resblocks1:
-            out = block(out)
+            out = block(out, training)
         out = self.conv2(out)
         for block in self.resblocks2:
-            out = block(out)
+            out = block(out, training)
         out = self.pooling1(out)
         for block in self.resblocks3:
-            out = block(out)
+            out = block(out, training)
         out = self.pooling2(out)
         return out
 
@@ -83,12 +83,12 @@ class RepresentationNetwork(Model):
             self.bn = tfkl.BatchNormalization()
         self.resblocks = [ResidualBlock(settings.depth) for _ in range(settings.blocks)]
 
-    def call(self, x):
+    def call(self, x, training):
         if self.use_ds:
-            out = self.ds(x)
+            out = self.ds(x, training)
         else:
             out = self.conv(x)
-            out = self.bn(out)
+            out = self.bn(out, training=training)
             out = tf.nn.relu(out)
 
         for block in self.resblocks:
@@ -106,12 +106,12 @@ class DynamicsNetwork(Model):
         #self.fc = FullyConnectedNetwork(settings.reward_layers, settings.support_size*2+1, activation=None)
         self.fc = FullyConnectedNetwork(settings.reward_layers, 1)
 
-    def call(self, x):
+    def call(self, x, training):
         out = self.conv(x)
-        out = self.bn(out)
+        out = self.bn(out, training=training)
         out = tf.nn.relu(out)
         for block in self.resblocks:
-            out = block(out)
+            out = block(out,training)
         state = out
         out = self.conv1x1(out)
         out = self.flat(out)
@@ -128,10 +128,10 @@ class PredictionNetwork(Model):
         self.fc_value = FullyConnectedNetwork(settings.value_layers, settings.support_size*2+1)
         self.fc_policy = FullyConnectedNetwork(settings.policy_layers, settings.action_space)
 
-    def call(self, x):
+    def call(self, x, training):
         out = x
         for block in self.resblocks:
-            out = block(out)
+            out = block(out, training)
         out = self.conv1x1(out)
         out = self.flat(out)
         value = self.fc_value(out)
@@ -153,52 +153,15 @@ class MuZero:
                                                   beta_2=self.sts.adam_beta_2,
                                                   epsilon=float(self.sts.adam_epsilon))
         self.value_loss =  tf.keras.losses.CategoricalCrossentropy()#reduction=tf.keras.losses.Reduction.NONE)
-        #self.value_loss = tf.keras.losses.MeanSquaredErro(reduction=tf.keras.losses.Reduction.NONE)
         self.reward_loss = tf.keras.losses.MeanSquaredError()#reduction=tf.keras.losses.Reduction.NONE)
         self.policy_loss =  tf.keras.losses.CategoricalCrossentropy()#reduction=tf.keras.losses.Reduction.NONE)
-        #self.policy_loss = tf.keras.losses.MeanSquaredError(reduction=tf.keras.losses.Reduction.NONE)
-
-    #def train(self, data):
-    #    # obs, actions, target_value, target_reward, target_policy = data
-
-    #    with tf.GradientTape() as model_tape:
-    #        value, reward, policy_logits, hidden_state = self.initial_inference(data['observation_batch'])
-    #        predictions = [[value, reward, policy_logits]]
-    #        for i in range(1, data['actions'].shape[-1]):
-    #            value, reward, policy_logits, hidden_state = self.recurrent_inference(hidden_state, data['actions'][:, i])
-    #            # Scale the gradient at the start of the dynamics function (See paper appendix Training)
-    #            hidden_state = scale_grad(hidden_state, 0.5)#egister_hook(lambda grad: grad * 0.5)
-    #            predictions.append([value, reward, policy_logits])
-
-    #        # Compute losses
-    #        value, reward, policy_logits = predictions[0]
-    #        value_loss, _, policy_loss = self.loss_function(value, reward, policy_logits, data['target_values'][:, 0], data['target_rewards'][:, 0], data['target_policies'][:, 0])
-    #        reward_loss = 0.
-
-    #        for i, prediction in enumerate(predictions[1:], 1):
-    #            current_value_loss, current_reward_loss, current_policy_loss = self.loss_function(prediction[0], prediction[1], prediction[2], data['target_values'][:, i], data['target_rewards'][:, i], data['target_policies'][:, i])
-    #            # Scale gradient by the number of unroll steps (See paper appendix Training)
-    #            value_loss += scale_grad(current_value_loss, 1./i)*data['mask_policy'][:,i]#register_hook(lambda grad: grad / gradient_scale_batch[:, i])
-    #            reward_loss += scale_grad(current_reward_loss, 1./i)*data['mask_policy'][:,i]#.register_hook(lambda grad: grad / gradient_scale_batch[:, i])
-    #            policy_loss += scale_grad(current_policy_loss, 1./i)*data['mask_policy'][:,i]#.register_hook(lambda grad: grad / gradient_scale_batch[:, i])
-    #            #print(data['mask_policy'][:,i])
-    #            loss = value_loss * self.sts.value_loss_weight + reward_loss + policy_loss
-
-    #        loss = tf.reduce_mean(loss)
-
-    #    # Optimize
-    #    grads = model_tape.gradient(loss, self.get_trainable_variables())
-    #    self.optimizer.apply_gradients(zip(grads, self.get_trainable_variables()))
-    #    self.training_step += 1
-    #    return tf.reduce_mean(value_loss), tf.reduce_mean(reward_loss), tf.reduce_mean(policy_loss), loss
 
     def train(self, data):
-        # obs, actions, target_value, target_reward, target_policy = data
-
         obs, targets_init, targets_time, actions_time, mask_time, dynamic_mask_time = data
         with tf.GradientTape() as model_tape:
+        #def loss():
             # Acquire state
-            value, reward, policy_logits, hidden_state = self.initial_inference(np.array(obs))
+            value, reward, policy_logits, hidden_state = self.initial_inference(np.array(obs), training=True)
             target_value, target_reward, target_policy = zip(*targets_init)
             # Creates masks to handle non-exisiting policies (end of episode)
             target_policy = target_policy
@@ -219,7 +182,7 @@ class MuZero:
                 # Mask hidden state
                 hidden_state = tf.boolean_mask(hidden_state, dynamic_mask)
                 # Apply Dynamics
-                value, reward, policy_logits, hidden_state = self.recurrent_inference(hidden_state, np.array(actions,dtype=np.float32))
+                value, reward, policy_logits, hidden_state = self.recurrent_inference(hidden_state, np.array(actions,dtype=np.float32), training=True)
                 # Mask targets
                 target_value = tf.boolean_mask(target_value, mask)
                 target_reward = tf.boolean_mask(target_reward, mask)
@@ -242,29 +205,33 @@ class MuZero:
                 k += 1 
 
             loss = tf.reduce_mean(loss)
+            print(loss, reward_loss)
+            #return loss
 
         # Optimize
         grads = model_tape.gradient(loss, self.get_trainable_variables())
         self.optimizer.apply_gradients(zip(grads, self.get_trainable_variables()))
+        #self.optimizer.minimize(loss=loss, var_list=self.get_trainable_variables())#apply_gradients(zip(grads, self.get_trainable_variables()))
         self.training_step += 1
-        return value_loss, reward_loss, policy_loss, loss
+        #return 0.0, 0.0, 0.0, 0.0#loss
+        return 0.0, 0.0, 0.0, 0.0#loss
 
     def save_weights(self):
-        self.representation_network.save_weights(self.sts.model_path)
-        self.dynamics_network.save_weights(self.sts.model_path)
-        self.prediction_network.save_weights(self.sts.model_path)
+        self.representation_network.save_weights(self.sts.model_path+'/representation/weights')
+        self.dynamics_network.save_weights(self.sts.model_path+'/dynamic/weights')
+        self.prediction_network.save_weights(self.sts.model_path+'/predictions/weights')
 
     def load_weights(self):
-        self.representation_network.load_weights(self.sts.model_path)
-        self.dynamics_network.load_weights(self.sts.model_path)
-        self.prediction_network.load_weights(self.sts.model_path)
+        self.representation_network.load_weights(self.sts.model_path+'/representation/weights')
+        self.dynamics_network.load_weights(self.sts.model_path+'/dynamic/weights')
+        self.prediction_network.load_weights(self.sts.model_path+'/predictions/weights')
 
-    def prediction(self, encoded_state):
-        policy, value = self.prediction_network(encoded_state)
+    def prediction(self, encoded_state, training=False):
+        policy, value = self.prediction_network(encoded_state, training)
         return policy, value
 
-    def representation(self, obs):
-        state = self.representation_network(obs)
+    def representation(self, obs, training=False):
+        state = self.representation_network(obs, training)
         # [0,1] scaling
         min_state = tf.reduce_min(state, axis=(-2,-1), keepdims=True)
         max_state = tf.reduce_max(state, axis=(-2,-1), keepdims=True)
@@ -272,13 +239,13 @@ class MuZero:
         state_norm = (state - min_state) / scale_state
         return state_norm
 
-    def dynamics(self, state, action):
+    def dynamics(self, state, action, training=False):
         # Stack encoded_state with action as plane
         action_one_hot = tf.ones((1, state.shape[1], state.shape[2], state.shape[0]), dtype=tf.dtypes.float32)
         action_one_hot = action_one_hot * action / self.sts.action_space
         action_one_hot = tf.transpose(action_one_hot, [3, 1, 2, 0])
         x = tf.concat((state, action_one_hot), -1)
-        nxt_state, reward = self.dynamics_network(x)
+        nxt_state, reward = self.dynamics_network(x, training)
         # [0,1] scaling
         min_nxt_state = tf.reduce_min(nxt_state, axis=(-2,-1), keepdims=True)
         max_nxt_state = tf.reduce_max(nxt_state, axis=(-2,-1), keepdims=True)
@@ -286,15 +253,15 @@ class MuZero:
         nxt_state_normalized = (nxt_state - min_nxt_state) / scale_nxt_state
         return nxt_state_normalized, reward
 
-    def initial_inference(self, observation):
-        encoded_state = self.representation(observation)
+    def initial_inference(self, observation, training=False):
+        encoded_state = self.representation(observation, training=training)
         policy_logits, value = self.prediction(encoded_state)
         reward = tf.ones(len(observation),dtype=tf.int32)
         return value, reward, policy_logits, encoded_state
 
-    def recurrent_inference(self, state, action):
-        nxt_state, reward = self.dynamics(state, action)
-        policy_logits, value = self.prediction(nxt_state)
+    def recurrent_inference(self, state, action, training=False):
+        nxt_state, reward = self.dynamics(state, action,training=training)
+        policy_logits, value = self.prediction(nxt_state,training=training)
         return value, reward, policy_logits, nxt_state
 
     def loss_function(self, pred_value, pred_reward, pred_policy_logits, true_value, true_reward, true_policy):

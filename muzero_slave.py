@@ -44,9 +44,9 @@ def run(stg):
 
             observation = new_obs
 
-        if (datetime.datetime.now().minute - last) % 60 > 5:
+        if (datetime.datetime.now().minute - last) % 60 > 1:
             if os.path.exists(settings.model.model_path):
-                agent.load()
+                agent.load_weights()
                 last = datetime.datetime.now().minute
                 print('new weights loaded')
 
