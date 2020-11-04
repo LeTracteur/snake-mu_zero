@@ -32,19 +32,19 @@ buffer:
   td_steps: 10
   reanalize: 1
   stacked_frame: 16
-  support_size: 150
+  support_size: 10
   action_space: 5
 model:
   depth: 128
   reduced_depth: 32
-  stacked_frame: 16
+  stacked_frame: 4
   blocks: 8
-  support_size: 150
+  support_size: 10
   use_downsampling: 1
   action_space: 5
-  value_layers: [128,32]
-  policy_layers: [128,32]
-  reward_layers: [128,32]
+  value_layers: [128, 32]
+  policy_layers: [128, 32]
+  reward_layers: [128, 32]
   learning_rate: 0.001
   adam_beta_1: 0.9
   adam_beta_2: 0.999
@@ -56,7 +56,7 @@ game:
 mcts:
   players: [0]
   num_simulations: 50
-  support_size: 150
+  support_size: 10
   max_moves: 2000
   root_dirichlet_alpha: 0.25
   root_exploration_fraction: 0.25

@@ -23,7 +23,10 @@ def main(stg):
         tf.config.experimental.set_memory_growth(gpu, True)
     agent = muzero_model.MuZero(settings.model)
     agent.build()
-    agent.load_weights()
+    try:
+        agent.load_weights()
+    except:
+        pass
 
     last_ep = 0
     replay_buffer.load_games_from_folder(load_from_seen = True)
@@ -56,10 +59,9 @@ def main(stg):
             tf.summary.scalar('training_steps', agent.training_step, step=ep)
             env.draw_game(obs_hist, 'train_gif', ep)
 
-        if ep-last_ep > 100:
+        if ep-last_ep > 25:
             last_ep = ep
-            print('Training statistics:')
-            print('ep:'+str(ep)+', value_loss:'+str(value_loss.numpy().item())+', reward_loss:'+str(reward_loss.numpy().item())+', policy_loss:'+str(policy_loss.numpy().item())+', total_loss:'+str(total_loss.numpy().item())+', steps:'+str(step)+', reward:'+str(reward)+', training_steps:'+str(agent.training_step)+'.')
+            print('ep:'+str(ep)+', value_loss:'+str(value_loss.numpy().item()/train_for)+', reward_loss:'+str(reward_loss.numpy().item()/train_for)+', policy_loss:'+str(policy_loss.numpy().item()/train_for)+', total_loss:'+str(total_loss.numpy().item()/train_for)+', steps:'+str(step)+', reward:'+str(reward)+', training_steps:'+str(agent.training_step)+'.')
 
 
 

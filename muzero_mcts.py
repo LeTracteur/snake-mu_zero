@@ -19,7 +19,8 @@ class MCTS:
         #observation = (torch.tensor(observation).float().unsqueeze(0).to(next(model.parameters()).device))
         root_pred_value, reward, policy_logits, hidden_state = model.initial_inference(np.expand_dims(observation, 0))
         root_pred_value = support_to_scalar(root_pred_value, self.sts.support_size)
-        reward = support_to_scalar(reward, self.sts.support_size)
+        #reward = support_to_scalar(reward, self.sts.support_size)
+        reward = reward.numpy().item()
         root.expand(legal_actions, to_play, reward, policy_logits, hidden_state)
         if add_exploration_noise:
             root.add_exploration_noise(
@@ -52,7 +53,8 @@ class MCTS:
             parent = search_path[-2]
             value, reward, policy_logits, hidden_state = model.recurrent_inference(parent.hidden_state, action)
             value = support_to_scalar(value, self.sts.support_size)
-            reward = support_to_scalar(reward, self.sts.support_size)
+            #reward = support_to_scalar(reward, self.sts.support_size)
+            reward = reward.numpy().item()
             node.expand(self.sts.action_pos, virtual_to_play, reward, policy_logits, hidden_state)
 
             self.backpropagate(search_path, value, virtual_to_play, min_max_stats)
@@ -98,7 +100,7 @@ class MCTS:
         for node in reversed(search_path):
             node.value_sum += value if node.to_play == to_play else -value
             node.visit_count += 1
-            min_max_stats.update(node.reward + self.sts.discount * node.value())
+            min_max_stats.update(node.reward + self.sts.discount * node.value().numpy().item())
 
             value = node.reward + self.sts.discount * value
 
@@ -190,12 +192,12 @@ def select_action(node, temperature):
     return action
 
 def select_temperature(episode):
-    if episode < 10000:
-        temperature = float("inf")
-    elif episode < 20000:
+    if episode < 2000:
         temperature = 1.0
-    elif episode < 50000:
+    elif episode < 4000:
         temperature = 0.5
-    else:
+    elif episode < 6000:
         temperature = 0.25
+    else:
+        temperature = 0.125
     return temperature

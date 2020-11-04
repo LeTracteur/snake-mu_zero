@@ -48,6 +48,7 @@ def run(stg):
             if os.path.exists(settings.model.model_path):
                 agent.load()
                 last = datetime.datetime.now().minute
+                print('new weights loaded')
 
 if __name__ == '__main__':
     setting_file = sys.argv[1]

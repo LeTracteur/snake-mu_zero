@@ -62,6 +62,8 @@ def main(stg):
                 reward_loss += r_loss
                 policy_loss += p_loss
                 total_loss += t_loss
+            agent.save_weights()
+            agent.load_weights()
 
             with train_summary_writer.as_default():
                 tf.summary.scalar('value_loss', value_loss / train_for, step=ep)
