@@ -5,7 +5,7 @@ from environment_new import *
 from game import Game
 from replay_buffer import ReplayBuffer
 import muzero_model
-from muzero_mcts import MCTS, select_action, select_temperature
+#from muzero_mcts import MCTS, select_action, select_temperature
 import datetime
 import tensorflow as tf
 
