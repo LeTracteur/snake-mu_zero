@@ -36,7 +36,7 @@ class ReplayBuffer:
         else:
             if not os.path.exists('games/seen'):
                 os.mkdir("games/seen")
-            if not os.path.exists("games/seen/"+self.current_game_folder)
+            if not os.path.exists("games/seen/"+self.current_game_folder):
                 os.mkdir("games/seen/"+self.current_game_folder)
 
             if load_from_seen:
