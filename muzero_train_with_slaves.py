@@ -69,5 +69,4 @@ def main(stg):
 if __name__ == '__main__':
     setting_file = sys.argv[1]
     stg_obj = utils.load_stgs(setting_file)
-
-    rp, a = main(stg_obj)
+    main(stg_obj)

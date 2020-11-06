@@ -113,8 +113,6 @@ class ReplayBuffer:
         batch = image_batch, targets_init_batch, targets_time_batch, actions_time_batch, mask_time_batch, dynamic_mask_time_batch
         return batch
 
-
-
     def get_game(self):
         g_id = np.random.choice(len(self.buffer))
         return self.buffer[g_id]
