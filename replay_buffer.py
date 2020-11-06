@@ -41,22 +41,25 @@ class ReplayBuffer:
                 os.mkdir("games/seen/" + self.current_game_folder)
 
             if load_from_seen:
-                games_files = glob.glob("games/seen/*.game")
-                if games_files:
-                    for g in games_files:
-                        if self.current_number_of_g == self.max_nb_of_g_per_folder:
-                            new_id = int(self.current_game_folder.split("_")[-1]) + 1
-                            self.current_game_folder = "games_batch_" + str(new_id)
-                            os.mkdir("games/seen/"+self.current_game_folder)
-                            self.current_number_of_g = 0
-
-                        name = g.split('/')[-1]
-                        shutil.move(g, "games/seen/"+self.current_game_folder + "/" + name)
-                        self.current_number_of_g += 1
-
-                    game_to_load = glob.glob("games/seen/*/*.game")
-                    if game_to_load:
-                        for g in game_to_load:
+                for batch in  os.listdir("games/seen/."):
+                    games_files = glob.glob("games/seen/"+batch+"/*.game")
+                    #if games_files:
+                    #    for g in games_files:
+                    #        if self.current_number_of_g == self.max_nb_of_g_per_folder:
+                    #            new_id = int(self.current_game_folder.split("_")[-1]) + 1
+                    #            self.current_game_folder = "games_batch_" + str(new_id)
+                    #            os.mkdir("games/seen/"+self.current_game_folder)
+                    #            self.current_number_of_g = 0
+                    #
+                    #        #name = g.split('/')[-1]
+                    #        #shutil.move(g, "games/seen/"+self.current_game_folder + "/" + name)
+                    #        self.current_number_of_g += 1
+                    #
+                    #game_to_load = glob.glob("games/seen/""/*.game")
+                    self.current_number_of_g = 0
+                    if games_files:
+                        for g in games_files:
+                            self.current_number_of_g += 1
                             with open(g, 'rb') as f:
                                 game = pickle.load(f)
                             self.save_game(game)
@@ -141,10 +144,10 @@ class ReplayBuffer:
             if self.allow_reanalize:
                 observation = game.get_stacked_observations(bootstrap_index, self.num_stacked_obs)
                 observation = np.expand_dims(observation,0)
-                last_step_val = muzero_model.support_to_scalar(model.initial_inference(observation)[0], self.support_size).numpy().item()
+                last_step_val = muzero_model.support_to_scalar(model.initial_inference(observation, training=False)[0], self.support_size).numpy().item()
                 value = last_step_val * game.discount ** self.td_steps
             else:
-                value = game.root_values[bootstrap_index] * game.discount ** self.td_steps
+                value = game.root_values[bootstrap_index].numpy().item() * game.discount ** self.td_steps
         else:
             value = 0
 

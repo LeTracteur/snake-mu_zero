@@ -28,10 +28,10 @@ env:
     rgb: (2, 213, 27)
 buffer:
   buffer_size: 1e6
-  batch_size: 32
+  batch_size: 128
   unroll_steps: 5
   td_steps: 10
-  reanalize: 1
+  reanalize: 0
   stacked_frame: 4
   support_size: 10
   action_space: 5
@@ -41,14 +41,13 @@ model:
   depth: 128
   reduced_depth: 32
   stacked_frame: 4
-  blocks: 3
+  blocks: 8
   support_size: 10
   use_downsampling: 1
   action_space: 5
-  value_layers: [128, 32]
-  policy_layers: [128, 32]
-  reward_layers: [128, 32]
-  learning_rate: 0.001
+  prediction_layers: [32]
+  reward_layers: [32]
+  learning_rate: 0.0005
   adam_beta_1: 0.9
   adam_beta_2: 0.999
   adam_epsilon: 1e-07
