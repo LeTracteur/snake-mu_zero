@@ -15,19 +15,16 @@ def scale_grad(tensor, scale):
 
 
 class FullyConnectedNetwork(Model):
-    def __init__(self, layer_sizes, output_size, activation=tf.nn.leaky_relu):
+    def __init__(self, layer_sizes, activation=tf.nn.leaky_relu):
         super().__init__()
         self._act = tf.nn.leaky_relu
         self._size_list = layer_sizes
-        self._output_size = output_size
         self.dense = [tfkl.Dense(i, activation=self._act) for i in self._size_list]
-        self.final = tfkl.Dense(output_size)
 
     def call(self, x):
         out = self.dense[0](x)
         for i in range(1, len(self.dense)):
             out = self.dense[i](out)
-            out = self.final(out)
         return out
 
 class ResidualBlock(Model):
@@ -104,7 +101,8 @@ class DynamicsNetwork(Model):
         self.conv1x1 = tfkl.Conv2D(settings.reduced_depth, (1,1), activation=tf.nn.leaky_relu)
         self.flat = tfkl.Flatten()
         #self.fc = FullyConnectedNetwork(settings.reward_layers, settings.support_size*2+1, activation=None)
-        self.fc = FullyConnectedNetwork(settings.reward_layers, 1)
+        self.fc = FullyConnectedNetwork(settings.reward_layers)
+        self.reward = tfkl.Dense(1)
 
     def call(self, x, training):
         out = self.conv(x)
@@ -115,28 +113,27 @@ class DynamicsNetwork(Model):
         state = out
         out = self.conv1x1(out)
         out = self.flat(out)
-        reward = self.fc(out)
+        out = self.fc(out)
+        reward = self.reward(out)
         return state, reward
 
 class PredictionNetwork(Model):
     def __init__(self, settings):
         super().__init__()
-        self.resblocks =  [ResidualBlock(settings.depth) for _ in range(settings.blocks)]
-
-        self.conv1x1 = tfkl.Conv2D(settings.reduced_depth, (1,1), activation=tf.nn.leaky_relu)
+        self.c1 = tfkl.Conv2D(settings.reduced_depth, (3,3), padding='same', activation = tf.nn.leaky_relu)
+        self.c2 = tfkl.Conv2D(settings.reduced_depth, (3,3), padding='same', activation = tf.nn.leaky_relu)
         self.flat = tfkl.Flatten()
-        self.fc_value = FullyConnectedNetwork(settings.value_layers, settings.support_size*2+1)
-        self.fc_policy = FullyConnectedNetwork(settings.policy_layers, settings.action_space)
+        self.fc = FullyConnectedNetwork(settings.prediction_layers)
+        self.value = tfkl.Dense(settings.support_size*2+1)
+        self.policy = tfkl.Dense(settings.action_space)
 
     def call(self, x, training):
-        out = x
-        for block in self.resblocks:
-            out = block(out, training)
-        out = self.conv1x1(out)
+        out = self.c1(x)
+        out = self.c2(out)
         out = self.flat(out)
-        value = self.fc_value(out)
-        policy = self.fc_policy(out)
-        return policy, value
+        value = self.value(out)
+        policy = self.policy(out)
+        return tf.nn.softmax(policy), value
 
 class MuZero:
     def __init__(self, settings):
@@ -260,9 +257,13 @@ class MuZero:
         return value, reward, policy_logits, nxt_state
 
     def loss_function(self, pred_value, pred_reward, pred_policy_logits, true_value, true_reward, true_policy):
-        value_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=pred_value, labels=scalar_to_support(true_value, self.sts.support_size)))
+        #value_loss =  tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=pred_value, labels=scalar_to_support(true_value, self.sts.support_size)))
+        value_loss =  tf.reduce_mean(-scalar_to_support(true_value, self.sts.support_size)*tf.nn.log_softmax(pred_value))
         reward_loss = tf.reduce_mean(tf.square(tf.subtract(true_reward, pred_reward)))
-        policy_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits =  pred_policy_logits, labels = true_policy))
+        policy_loss = tf.reduce_mean(- true_policy*tf.math.log(pred_policy_logits))
+        #print(value_loss)
+        #print(pred_policy_logits)
+        #print(true_policy)
         return value_loss, reward_loss, policy_loss
 
     def get_trainable_variables(self):
