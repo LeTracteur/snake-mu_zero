@@ -3,6 +3,7 @@ steps: 2000
 train_for: 5
 train_every: 1
 players: [0]
+with_per: 1
 env:
   action_space: 5
   grid_width: 10
@@ -28,7 +29,7 @@ env:
     rgb: (2, 213, 27)
 buffer:
   buffer_size: 1e6
-  batch_size: 128
+  batch_size: 32
   unroll_steps: 5
   td_steps: 10
   reanalize: 0

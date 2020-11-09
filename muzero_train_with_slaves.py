@@ -17,7 +17,10 @@ def main(stg):
     steps = settings.steps
     train_for = settings.train_for
     train_every = settings.train_every
-    replay_buffer = ReplayBuffer(settings.buffer)
+
+    with_per = bool(settings.with_per)
+
+    replay_buffer = ReplayBuffer(settings.buffer, with_per)
 
     for gpu in tf.config.experimental.list_physical_devices('GPU'):
         tf.config.experimental.set_memory_growth(gpu, True)
@@ -42,7 +45,8 @@ def main(stg):
         value_loss, reward_loss, policy_loss, total_loss = 0, 0, 0, 0
         for _ in range(train_for):
             data_batch = replay_buffer.get_batch(agent)
-            v_loss, r_loss, p_loss, t_loss = agent.train(data_batch)
+            v_loss, r_loss, p_loss, t_loss, priorities = agent.train(data_batch)
+            # TODO: update priorities
             value_loss += v_loss
             reward_loss += r_loss
             policy_loss += p_loss

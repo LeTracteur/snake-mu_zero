@@ -154,7 +154,7 @@ class MuZero:
         self.policy_loss =  tf.keras.losses.CategoricalCrossentropy()#reduction=tf.keras.losses.Reduction.NONE)
 
     def train(self, data):
-        obs, targets_init, targets_time, actions_time, mask_time, dynamic_mask_time = data
+        obs, targets_init, targets_time, actions_time, mask_time, dynamic_mask_time, samples_weights = data
         with tf.GradientTape() as model_tape:
             # Acquire state
             value, reward, policy_logits, hidden_state = self.initial_inference(np.array(obs), training=True)
@@ -199,7 +199,8 @@ class MuZero:
                 loss = value_loss * self.sts.value_loss_weight + reward_loss + policy_loss
                 hidden_state = scale_grad(hidden_state, 0.5)
                 k += 1 
-
+            print(loss.shape)
+            exit()
             loss = tf.reduce_mean(loss)
         
         # Optimize

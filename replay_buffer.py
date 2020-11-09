@@ -8,7 +8,7 @@ from itertools import zip_longest
 
 
 class ReplayBuffer:
-    def __init__(self, settings):
+    def __init__(self, settings, with_per):
         self.buffer_size = int(eval(settings.buffer_size))
         self.batch_size = settings.batch_size
         self.num_unroll_steps = settings.unroll_steps
@@ -17,6 +17,7 @@ class ReplayBuffer:
         self.num_stacked_obs = settings.stacked_frame
         self.support_size = settings.support_size
         self.action_space = settings.action_space
+        self.with_per = with_per
         self.alpha = settings.alpha
         self.beta = settings.beta
 
@@ -30,10 +31,13 @@ class ReplayBuffer:
 
     def save_game(self, game, model=None):
         # Si ça bug faut passer le model
-        for i, root_value in enumerate(game.root_values):
-            # pas sur que ca soit la root value, dans le papier ils disent search value
-            priority = (np.abs(root_value - self.compute_value(game, i, model)) ** self.alpha)
-            game.priorities.append(priority)
+        if self.with_per:
+            for i, root_value in enumerate(game.root_values):
+                # pas sur que ca soit la root value, dans le papier ils disent search value
+                priority = np.abs(root_value - self.compute_value(game, i, model)) ** self.alpha
+                game.priorities.append(priority[0][0])
+        else:
+            game.priorities = [1.0 for _ in range(len(game.root_values))]
 
         game.priorities = np.array(game.priorities, dtype=np.float32)
 
@@ -104,8 +108,12 @@ class ReplayBuffer:
                  "actions": [],
                  "mask": [],
                  "dynamic_mask": []}
+        games, g_prob = [], []
+        for _ in range(self.batch_size):
+            game_and_prob = self.get_game()
+            games.append(game_and_prob[0])
+            g_prob.append(game_and_prob[1])
 
-        games, g_prob = [self.get_game() for _ in range(self.batch_size)]
         game_pos = [(g, self.get_pos_in_g(g)) for g in games]
         pos_prob = [p for (g, (i, p)) in game_pos]
         n = len(self.buffer)
@@ -129,7 +137,6 @@ class ReplayBuffer:
             dynamic_mask_time_batch.append(dynamic_mask)
             last_mask = mask
             actions_time_batch[i] = [action for action in actions_batch if (action is not None)]
-
 
         batch = image_batch, targets_init_batch, targets_time_batch, actions_time_batch, mask_time_batch, dynamic_mask_time_batch, weight_batch
         return batch
