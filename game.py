@@ -11,6 +11,7 @@ class Game:
         self.rewards_history = []
         self.child_visits = []
         self.root_values = []
+        self.priorities = []
         self.discount = settings.discount
         self.action_space = action_space
 

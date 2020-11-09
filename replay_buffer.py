@@ -6,6 +6,7 @@ import glob
 import shutil
 from itertools import zip_longest
 
+
 class ReplayBuffer:
     def __init__(self, settings):
         self.buffer_size = int(eval(settings.buffer_size))
@@ -16,18 +17,31 @@ class ReplayBuffer:
         self.num_stacked_obs = settings.stacked_frame
         self.support_size = settings.support_size
         self.action_space = settings.action_space
+        self.alpha = settings.alpha
+        self.beta = settings.beta
 
         self.buffer = []
+        self.games_priority = []
 
         # variables for loading games from files
         self.current_game_folder = settings.current_game_folder
         self.max_nb_of_g_per_folder = settings.max_nb_of_g_per_folder
         self.current_number_of_g = 0
 
-    def save_game(self, game):
+    def save_game(self, game, model=None):
+        # Si ça bug faut passer le model
+        for i, root_value in enumerate(game.root_values):
+            # pas sur que ca soit la root value, dans le papier ils disent search value
+            priority = (np.abs(root_value - self.compute_value(game, i, model)) ** self.alpha)
+            game.priorities.append(priority)
+
+        game.priorities = np.array(game.priorities, dtype=np.float32)
+
         if len(self.buffer) > self.buffer_size:
             self.buffer.pop(0)
+            self.games_priority.pop(0)
         self.buffer.append(game)
+        self.games_priority.append(np.mean(game.priorities))
 
     def load_games_from_folder(self, load_from_seen=False):
         if not os.path.exists('games'):
@@ -56,10 +70,10 @@ class ReplayBuffer:
                     #        self.current_number_of_g += 1
                     #
                     #game_to_load = glob.glob("games/seen/""/*.game")
-                    self.current_number_of_g = 0
+                    # self.current_number_of_g = 0
                     if games_files:
                         for g in games_files:
-                            self.current_number_of_g += 1
+                            # self.current_number_of_g += 1
                             with open(g, 'rb') as f:
                                 game = pickle.load(f)
                             self.save_game(game)
@@ -91,12 +105,14 @@ class ReplayBuffer:
                  "mask": [],
                  "dynamic_mask": []}
 
-        games = [self.get_game() for _ in range(self.batch_size)]
+        games, g_prob = [self.get_game() for _ in range(self.batch_size)]
         game_pos = [(g, self.get_pos_in_g(g)) for g in games]
-
+        pos_prob = [p for (g, (i, p)) in game_pos]
+        n = len(self.buffer)
+        weight_batch = np.array([(n*g_prob[i]*pos_prob[i])**(-self.beta) for i in range(len(pos_prob))])
         actions, target_value, target_reward, target_policy = [], [], [], []
 
-        game_data = [(g.get_stacked_observations(i, self.num_stacked_obs), g.actions_history[i:i+self.num_unroll_steps], self.make_target(g, i, model)) for (g, i) in game_pos]
+        game_data = [(g.get_stacked_observations(i, self.num_stacked_obs), g.actions_history[i:i+self.num_unroll_steps], self.make_target(g, i, model)) for (g, (i, _)) in game_pos]
         image_batch, actions_time_batch, targets_batch = zip(*game_data)
         targets_init_batch, *targets_time_batch = zip(*targets_batch)
         actions_time_batch = list(zip_longest(*actions_time_batch, fillvalue=None))
@@ -113,16 +129,24 @@ class ReplayBuffer:
             dynamic_mask_time_batch.append(dynamic_mask)
             last_mask = mask
             actions_time_batch[i] = [action for action in actions_batch if (action is not None)]
-        batch = image_batch, targets_init_batch, targets_time_batch, actions_time_batch, mask_time_batch, dynamic_mask_time_batch
+
+
+        batch = image_batch, targets_init_batch, targets_time_batch, actions_time_batch, mask_time_batch, dynamic_mask_time_batch, weight_batch
         return batch
 
     def get_game(self):
-        g_id = np.random.choice(len(self.buffer))
-        return self.buffer[g_id]
+        # g_id = np.random.choice(len(self.buffer))
+        p = np.array(self.games_priority, dtype=np.float32)
+        p = p/np.sum(p)
+        g_id = np.random.choice(len(self.buffer), p=p)
+        return self.buffer[g_id], p[g_id]
 
     def get_pos_in_g(self, game):
-        pos = np.random.choice(len(game.actions_history))
-        return pos
+        # pos = np.random.choice(len(game.actions_history))
+        p = game.priorities/np.sum(game.priorities)
+        pos = np.random.choice(len(game.actions_history), p=p)
+
+        return pos, p[pos]
 
     def make_target(self, game, start_index, model):
         targets = []#, target_rewards, target_policies, actions = [], [], [], []
@@ -152,6 +176,9 @@ class ReplayBuffer:
         for i, reward in enumerate(game.rewards_history[idx:bootstrap_index]):
             value += reward * game.discount ** i
         return value
+
+    def update_prio(self):
+        pass
 
     def last_n_games_stat(self, n):
         last_n = self.buffer[-n:]

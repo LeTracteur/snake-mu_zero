@@ -35,6 +35,8 @@ buffer:
   stacked_frame: 4
   support_size: 10
   action_space: 5
+  alpha: 1.0
+  beta: 1.0
   current_game_folder: games_batch_0
   max_nb_of_g_per_folder: 1000
 model:
