@@ -42,8 +42,13 @@ class ReplayBuffer:
         game.priorities = np.array(game.priorities, dtype=np.float32)
 
         if len(self.buffer) > self.buffer_size:
-            self.buffer.pop(0)
-            self.games_priority.pop(0)
+            if self.with_per:
+                min_pos = np.argmin(self.games_priority)
+                self.buffer.pop(min_pos)
+                self.games_priority.pop(min_pos)
+            else:
+                self.buffer.pop(0)
+                self.games_priority.pop(0)
         self.buffer.append(game)
         self.games_priority.append(np.mean(game.priorities))
 
@@ -108,19 +113,21 @@ class ReplayBuffer:
                  "actions": [],
                  "mask": [],
                  "dynamic_mask": []}
-        games, g_prob = [], []
+        g_id, games, g_prob = [], [], []
         for _ in range(self.batch_size):
-            game_and_prob = self.get_game()
-            games.append(game_and_prob[0])
-            g_prob.append(game_and_prob[1])
+            id_game_and_prob = self.get_game()
+            g_id.append(id_game_and_prob[0])
+            games.append(id_game_and_prob[1])
+            g_prob.append(id_game_and_prob[2])
 
-        game_pos = [(g, self.get_pos_in_g(g)) for g in games]
-        pos_prob = [p for (g, (i, p)) in game_pos]
+        game_pos_prob = [(g, self.get_pos_in_g(g)) for g in games]
+        pos_prob = [p for (g, (i, p)) in game_pos_prob]
+        pos = [i for (g, (i, p)) in game_pos_prob]
         n = len(self.buffer)
         weight_batch = np.array([(n*g_prob[i]*pos_prob[i])**(-self.beta) for i in range(len(pos_prob))])
         actions, target_value, target_reward, target_policy = [], [], [], []
 
-        game_data = [(g.get_stacked_observations(i, self.num_stacked_obs), g.actions_history[i:i+self.num_unroll_steps], self.make_target(g, i, model)) for (g, (i, _)) in game_pos]
+        game_data = [(g.get_stacked_observations(i, self.num_stacked_obs), g.actions_history[i:i+self.num_unroll_steps], self.make_target(g, i, model)) for (g, (i, _)) in game_pos_prob]
         image_batch, actions_time_batch, targets_batch = zip(*game_data)
         targets_init_batch, *targets_time_batch = zip(*targets_batch)
         actions_time_batch = list(zip_longest(*actions_time_batch, fillvalue=None))
@@ -139,14 +146,14 @@ class ReplayBuffer:
             actions_time_batch[i] = [action for action in actions_batch if (action is not None)]
 
         batch = image_batch, targets_init_batch, targets_time_batch, actions_time_batch, mask_time_batch, dynamic_mask_time_batch, weight_batch
-        return batch
+        return [[g_id[i], pos[i]] for i in range(len(g_id))], batch
 
     def get_game(self):
         # g_id = np.random.choice(len(self.buffer))
         p = np.array(self.games_priority, dtype=np.float32)
         p = p/np.sum(p)
         g_id = np.random.choice(len(self.buffer), p=p)
-        return self.buffer[g_id], p[g_id]
+        return g_id, self.buffer[g_id], p[g_id]
 
     def get_pos_in_g(self, game):
         # pos = np.random.choice(len(game.actions_history))
@@ -184,8 +191,15 @@ class ReplayBuffer:
             value += reward * game.discount ** i
         return value
 
-    def update_prio(self):
-        pass
+    def update_prio(self, new_priorities, index_batch):
+
+        for i in range(len(index_batch)):
+            g_id, pos = index_batch[i]
+            new_priority = new_priorities[i, :]
+            end_index = min(pos+len(new_priority), len(self.buffer[g_id].priorities))
+            self.buffer[g_id].priorities[pos:end_index] = new_priority[:end_index-pos]
+
+            self.games_priority[g_id] = np.mean(self.buffer[g_id].priorities)  # option: mean, sum, max, should be change in init also
 
     def last_n_games_stat(self, n):
         last_n = self.buffer[-n:]

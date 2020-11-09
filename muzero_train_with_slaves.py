@@ -44,9 +44,11 @@ def main(stg):
         step, reward, obs_hist = replay_buffer.last_n_games_stat(10)
         value_loss, reward_loss, policy_loss, total_loss = 0, 0, 0, 0
         for _ in range(train_for):
-            data_batch = replay_buffer.get_batch(agent)
+            index_batch, data_batch = replay_buffer.get_batch(agent)
             v_loss, r_loss, p_loss, t_loss, priorities = agent.train(data_batch)
-            # TODO: update priorities
+
+            if with_per:
+                replay_buffer.update_prio(priorities, index_batch)
             value_loss += v_loss
             reward_loss += r_loss
             policy_loss += p_loss

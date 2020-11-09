@@ -56,6 +56,7 @@ model:
   adam_epsilon: 1e-07
   value_loss_weight: 0.25
   model_path: models
+  per_alpha: 1.0
 game:
   discount: 0.997
 mcts:

@@ -155,16 +155,20 @@ class MuZero:
 
     def train(self, data):
         obs, targets_init, targets_time, actions_time, mask_time, dynamic_mask_time, samples_weights = data
+        new_priorities = np.zeros((len(obs), len(targets_time)+1))
         with tf.GradientTape() as model_tape:
             # Acquire state
             value, reward, policy_logits, hidden_state = self.initial_inference(np.array(obs), training=True)
             target_value, target_reward, target_policy = zip(*targets_init)
+
+            pred_value_scalar = np.reshape(support_to_scalar(value, self.sts.support_size), -1)
+            new_priorities[:, 0] = np.abs(pred_value_scalar - np.array(target_value)) ** self.sts.per_alpha
+
             # Creates masks to handle non-exisiting policies (end of episode)
             target_policy = target_policy
             mask_policy = list(map(lambda l: bool(l), target_policy))
             target_policy = list(filter(lambda l: bool(l), target_policy))
             policy_logits = tf.boolean_mask(policy_logits, mask_policy)
-
             # Compute initial losses
             value_loss, _, policy_loss = self.loss_function(value, reward, policy_logits, np.array(target_value,dtype=np.float32),
                                                                                           np.array(target_reward,dtype=np.float32),
@@ -179,6 +183,19 @@ class MuZero:
                 hidden_state = tf.boolean_mask(hidden_state, dynamic_mask)
                 # Apply Dynamics
                 value, reward, policy_logits, hidden_state = self.recurrent_inference(hidden_state, np.array(actions,dtype=np.float32), training=True)
+
+                pred_value_scalar = np.reshape(support_to_scalar(value, self.sts.support_size), -1)
+                if len(pred_value_scalar) != len(target_value):
+                    local_i = 0
+                    new_pred = []
+                    for b in mask:
+                        if b:
+                            new_pred.append(pred_value_scalar[local_i])
+                        else:
+                            new_pred.append(0)
+                    pred_value_scalar = new_pred
+                new_priorities[:, k] = np.abs(pred_value_scalar - np.array(target_value)) ** self.sts.per_alpha
+
                 # Mask targets
                 target_value = tf.boolean_mask(target_value, mask)
                 target_reward = tf.boolean_mask(target_reward, mask)
@@ -198,16 +215,14 @@ class MuZero:
                 policy_loss += scale_grad(current_policy_loss, 1./k)
                 loss = value_loss * self.sts.value_loss_weight + reward_loss + policy_loss
                 hidden_state = scale_grad(hidden_state, 0.5)
-                k += 1 
-            print(loss.shape)
-            exit()
+                k += 1
+            loss = loss * samples_weights
             loss = tf.reduce_mean(loss)
-        
         # Optimize
         grads = model_tape.gradient(loss, self.get_trainable_variables())
         self.optimizer.apply_gradients(zip(grads, self.get_trainable_variables()))
         self.training_step += 1
-        return value_loss/k, reward_loss/(k-1), policy_loss/k, loss/k
+        return value_loss/k, reward_loss/(k-1), policy_loss/k, loss/k, new_priorities
 
     def save_weights(self):
         self.representation_network.save_weights(self.sts.model_path+'/representation/weights')
