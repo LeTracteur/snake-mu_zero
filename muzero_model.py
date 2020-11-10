@@ -153,7 +153,7 @@ class MuZero:
         self.reward_loss = tf.keras.losses.MeanSquaredError()#reduction=tf.keras.losses.Reduction.NONE)
         self.policy_loss =  tf.keras.losses.CategoricalCrossentropy()#reduction=tf.keras.losses.Reduction.NONE)
 
-    def train(self, data):
+    def  train(self, data):
         obs, targets_init, targets_time, actions_time, mask_time, dynamic_mask_time, samples_weights = data
         new_priorities = np.zeros((len(obs), len(targets_time)+1))
         with tf.GradientTape() as model_tape:
@@ -172,7 +172,7 @@ class MuZero:
             # Compute initial losses
             value_loss, _, policy_loss = self.loss_function(value, reward, policy_logits, np.array(target_value,dtype=np.float32),
                                                                                           np.array(target_reward,dtype=np.float32),
-                                                                                          np.array(target_policy,dtype=np.float32))
+                                                                                          np.array(target_policy,dtype=np.float32), samples_weights, samples_weights)
             reward_loss = 0.
             # Compute losses
             k = 1
@@ -205,18 +205,21 @@ class MuZero:
                 target_policy = tf.convert_to_tensor([policy for policy in target_policy if policy])
                 target_policy = tf.reshape(target_policy,[-1,self.sts.action_space])
                 policy_logits = tf.boolean_mask(policy_logits, mask_policy)
+                # Mask weights
+                mask_weights = tf.boolean_mask(samples_weights, mask)
+                mask_p_weights = [w for w, b in zip(samples_weights, mask_policy) if b]
                 # Compute loss and scale gradient
                 current_value_loss, current_reward_loss, current_policy_loss = self.loss_function(value, reward, policy_logits,
                                                                                                   target_value,
                                                                                                   target_reward,
-                                                                                                  target_policy)
+                                                                                                  target_policy, mask_weights, mask_p_weights)
                 value_loss += scale_grad(current_value_loss, 1./k)
                 reward_loss += scale_grad(current_reward_loss, 1./k)
                 policy_loss += scale_grad(current_policy_loss, 1./k)
                 loss = value_loss * self.sts.value_loss_weight + reward_loss + policy_loss
                 hidden_state = scale_grad(hidden_state, 0.5)
                 k += 1
-            loss = loss * samples_weights
+            # loss = loss * samples_weights
             loss = tf.reduce_mean(loss)
         # Optimize
         grads = model_tape.gradient(loss, self.get_trainable_variables())
@@ -272,11 +275,14 @@ class MuZero:
         policy_logits, value = self.prediction(nxt_state,training=training)
         return value, reward, policy_logits, nxt_state
 
-    def loss_function(self, pred_value, pred_reward, pred_policy_logits, true_value, true_reward, true_policy):
+    def loss_function(self, pred_value, pred_reward, pred_policy_logits, true_value, true_reward, true_policy, weights, p_weights):
+        weights = np.expand_dims(weights, 1)
+        p_weights = np.expand_dims(p_weights, 1)
+
         #value_loss =  tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=pred_value, labels=scalar_to_support(true_value, self.sts.support_size)))
-        value_loss =  tf.reduce_mean(-scalar_to_support(true_value, self.sts.support_size)*tf.nn.log_softmax(pred_value))
-        reward_loss = tf.reduce_mean(tf.square(tf.subtract(true_reward, pred_reward)))
-        policy_loss = tf.reduce_mean(- true_policy*tf.math.log(pred_policy_logits))
+        value_loss = tf.reduce_mean(-scalar_to_support(true_value, self.sts.support_size)*tf.nn.log_softmax(pred_value)*weights)
+        reward_loss = tf.reduce_mean(tf.square(tf.subtract(true_reward, pred_reward)*weights))
+        policy_loss = tf.reduce_mean(- true_policy*tf.math.log(pred_policy_logits)*p_weights)
         #print(value_loss)
         #print(pred_policy_logits)
         #print(true_policy)
